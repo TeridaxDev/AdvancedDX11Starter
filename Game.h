@@ -9,6 +9,7 @@
 #include "SpriteBatch.h"
 #include "Lights.h"
 #include "Sky.h"
+#include "Input.h"
 
 #include <DirectXMath.h>
 #include <wrl/client.h> // Used for ComPtr - a smart pointer for COM objects
@@ -73,5 +74,8 @@ private:
 
 	// Initialization helper method
 	void LoadAssetsAndCreateEntities();
+
+	Input& input = Input::GetInstance();
+
 };
 

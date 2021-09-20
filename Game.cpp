@@ -8,6 +8,11 @@
 
 #include "WICTextureLoader.h"
 
+#include "Extensions/imgui/imgui.h"
+#include "Extensions/imgui/backends/imgui_impl_dx11.h"
+#include "Extensions/imgui/backends/imgui_impl_win32.h"
+
+#include "AssetLoader.h"
 
 // Needed for a helper function to read compiled shader files from the hard drive
 #pragma comment(lib, "d3dcompiler.lib")
@@ -79,6 +84,14 @@ Game::~Game()
 
 	// Delete singletons
 	delete& Input::GetInstance();
+
+	// ImGui cleanup
+	ImGui_ImplDX11_Shutdown();
+	ImGui_ImplWin32_Shutdown();
+	ImGui::DestroyContext();
+
+	AssetLoader::getInstance().DeleteAssets();
+
 }
 
 // --------------------------------------------------------
@@ -108,6 +121,15 @@ void Game::Init()
 		3.0f,		// Move speed
 		1.0f,		// Mouse look
 		this->width / (float)this->height); // Aspect ratio
+
+	IMGUI_CHECKVERSION();
+	ImGui::CreateContext();
+
+	ImGui::StyleColorsDark();
+
+	ImGui_ImplWin32_Init(hWnd);
+	ImGui_ImplDX11_Init(device.Get(), context.Get());
+
 }
 
 
@@ -116,6 +138,9 @@ void Game::Init()
 // --------------------------------------------------------
 void Game::LoadAssetsAndCreateEntities()
 {
+
+	AssetLoader::getInstance().LoadAssets(device, context);
+
 	// Load shaders using our succinct LoadShader() macro
 	SimpleVertexShader* vertexShader	= LoadShader(SimpleVertexShader, L"VertexShader.cso");
 	SimplePixelShader* pixelShader		= LoadShader(SimplePixelShader, L"PixelShader.cso");
@@ -157,11 +182,12 @@ void Game::LoadAssetsAndCreateEntities()
 	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> roughA,  roughN,  roughR,  roughM;
 	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> woodA,  woodN,  woodR,  woodM;
 
+	cobbleA = AssetLoader::getInstance().GetTexture("cobblestone_albedo.png");
+	cobbleA = AssetLoader::getInstance().GetTexture("cobblestone_normals.png");
+	cobbleA = AssetLoader::getInstance().GetTexture("cobblestone_roughness.png");
+	cobbleA = AssetLoader::getInstance().GetTexture("cobblestone_metal.png");
+
 	// Load the textures using our succinct LoadTexture() macro
-	LoadTexture(L"../../Assets/Textures/cobblestone_albedo.png", cobbleA);
-	LoadTexture(L"../../Assets/Textures/cobblestone_normals.png", cobbleN);
-	LoadTexture(L"../../Assets/Textures/cobblestone_roughness.png", cobbleR);
-	LoadTexture(L"../../Assets/Textures/cobblestone_metal.png", cobbleM);
 
 	LoadTexture(L"../../Assets/Textures/floor_albedo.png", floorA);
 	LoadTexture(L"../../Assets/Textures/floor_normals.png", floorN);
@@ -339,6 +365,13 @@ void Game::LoadAssetsAndCreateEntities()
 	entities.push_back(roughSphere);
 	entities.push_back(woodSphere);
 
+	cobSpherePBR->GetTransform()->AddChild(cobSphere->GetTransform());
+	floorSpherePBR->GetTransform()->AddChild(floorSphere->GetTransform());
+	paintSpherePBR->GetTransform()->AddChild(paintSphere->GetTransform());
+	scratchSpherePBR->GetTransform()->AddChild(scratchSphere->GetTransform());
+	bronzeSpherePBR->GetTransform()->AddChild(bronzeSphere->GetTransform());
+	roughSpherePBR->GetTransform()->AddChild(roughSphere->GetTransform());
+	woodSpherePBR->GetTransform()->AddChild(woodSphere->GetTransform());
 
 	// Save assets needed for drawing point lights
 	// (Since these are just copies of the pointers,
@@ -420,6 +453,96 @@ void Game::OnResize()
 // --------------------------------------------------------
 void Game::Update(float deltaTime, float totalTime)
 {
+
+	// Reset input manager's gui state so we don’t
+	// taint our own input (you’ll uncomment later)
+	input.SetGuiKeyboardCapture(false);
+	input.SetGuiMouseCapture(false);
+	// Set io info
+	ImGuiIO& io = ImGui::GetIO();
+	io.DeltaTime = deltaTime;
+	io.DisplaySize.x = (float)this->width;
+	io.DisplaySize.y = (float)this->height;
+	io.KeyCtrl = input.KeyDown(VK_CONTROL);
+	io.KeyShift = input.KeyDown(VK_SHIFT);
+	io.KeyAlt = input.KeyDown(VK_MENU);
+	io.MousePos.x = (float)input.GetMouseX();
+	io.MousePos.y = (float)input.GetMouseY();
+	io.MouseDown[0] = input.MouseLeftDown();
+	io.MouseDown[1] = input.MouseRightDown();
+	io.MouseDown[2] = input.MouseMiddleDown();
+	io.MouseWheel = input.GetMouseWheel();
+	input.GetKeyArray(io.KeysDown, 256);
+
+	// Reset the frame
+	ImGui_ImplDX11_NewFrame();
+	ImGui_ImplWin32_NewFrame();
+	ImGui::NewFrame();
+	// Determine new input capture (you’ll uncomment later)
+	input.SetGuiKeyboardCapture(io.WantCaptureKeyboard);
+	input.SetGuiMouseCapture(io.WantCaptureMouse);
+
+	// Show the demo window
+	//ImGui:: ShowDemoWindow();
+
+	ImGui::Begin("Stats");
+
+	ImGui::Text("Framerate: ");
+	ImGui::SameLine();
+	ImGui::Text(std::to_string(io.Framerate).c_str());
+	ImGui::Text("Width: ");
+	ImGui::SameLine();
+	ImGui::Text(std::to_string(width).c_str());
+	ImGui::SameLine();
+	ImGui::Text("Height: ");
+	ImGui::SameLine();
+	ImGui::Text(std::to_string(height).c_str());
+	ImGui::Text("Aspect Ratio: ");
+	ImGui::SameLine();
+	ImGui::Text(std::to_string((float)width / (float)height).c_str());
+	ImGui::Text("Entity Count");
+	ImGui::SameLine();
+	ImGui::Text(std::to_string(entities.size()).c_str());
+
+
+	ImGui::End();
+
+	ImGui::Begin("Object Manager");
+	if (ImGui::CollapsingHeader("Lights"))
+	{
+		for (size_t i = 0; i < lights.size(); i++)
+		{
+			if (ImGui::TreeNode(("Light " + std::to_string(i + 1)).c_str()))
+			{
+				ImGui::DragFloat3("Position", &lights[i].Position.x);
+				ImGui::DragFloat("Intensity", &lights[i].Intensity);
+				ImGui::ColorEdit4("Color", &lights[i].Color.x);
+				ImGui::TreePop();
+			}
+		}
+	}
+	
+	if (ImGui::CollapsingHeader("Entities"))
+	{
+		for (size_t i = 0; i < entities.size(); i++)
+		{
+			if (ImGui::TreeNode(("Object" + std::to_string(i + 1)).c_str()))
+			{
+				XMFLOAT3 pos = entities[i]->GetTransform()->GetPosition();
+				XMFLOAT3 rot = entities[i]->GetTransform()->GetPitchYawRoll();
+				XMFLOAT3 scl = entities[i]->GetTransform()->GetScale();
+				ImGui::DragFloat3("Position", &pos.x, 0.5f);
+				ImGui::DragFloat3("Rotation", &rot.x, 0.1f);
+				ImGui::DragFloat3("Scale", &scl.x, 0.5f);
+				entities[i]->GetTransform()->SetPosition(pos.x, pos.y, pos.z);
+				entities[i]->GetTransform()->SetRotation(rot.x, rot.y, rot.z);
+				entities[i]->GetTransform()->SetScale(scl.x, scl.y, scl.z);
+				ImGui::TreePop();
+			}
+		}
+	}
+	ImGui::End();
+
 	// Update the camera
 	camera->Update(deltaTime);
 
@@ -476,6 +599,9 @@ void Game::Draw(float deltaTime, float totalTime)
 	// Draw some UI
 	DrawUI();
 
+	// Draw ImGui
+	ImGui::Render();
+	ImGui_ImplDX11_RenderDrawData(ImGui::GetDrawData());
 
 	// Present the back buffer to the user
 	//  - Puts the final frame we're drawing into the window so the user can see it

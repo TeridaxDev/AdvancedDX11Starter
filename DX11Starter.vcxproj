@@ -87,9 +87,13 @@
       <Optimization>Disabled</Optimization>
       <SDLCheck>true</SDLCheck>
       <ConformanceMode>true</ConformanceMode>
+      <AdditionalIncludeDirectories>$(SolutionDir)/Extensions/include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <EnableModules>true</EnableModules>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
+      <AdditionalDependencies>assimp-vc142-mtd.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>$(SolutionDir)/Extensions/lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
@@ -115,16 +119,28 @@
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
       <ConformanceMode>true</ConformanceMode>
+      <AdditionalIncludeDirectories>$(SolutionDir)/Extensions/include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <EnableModules>true</EnableModules>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
+      <AdditionalDependencies>assimp-vc142-mtd.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>$(SolutionDir)/Extensions/lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="AssetLoader.cpp" />
     <ClCompile Include="Camera.cpp" />
     <ClCompile Include="DXCore.cpp" />
+    <ClCompile Include="Extensions\imgui\backends\imgui_impl_dx11.cpp" />
+    <ClCompile Include="Extensions\imgui\backends\imgui_impl_win32.cpp" />
+    <ClCompile Include="Extensions\imgui\imgui.cpp" />
+    <ClCompile Include="Extensions\imgui\imgui_demo.cpp" />
+    <ClCompile Include="Extensions\imgui\imgui_draw.cpp" />
+    <ClCompile Include="Extensions\imgui\imgui_tables.cpp" />
+    <ClCompile Include="Extensions\imgui\imgui_widgets.cpp" />
     <ClCompile Include="Game.cpp" />
     <ClCompile Include="GameEntity.cpp" />
     <ClCompile Include="Input.cpp" />
@@ -136,8 +152,17 @@
     <ClCompile Include="Transform.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="AssetLoader.h" />
     <ClInclude Include="Camera.h" />
     <ClInclude Include="DXCore.h" />
+    <ClInclude Include="Extensions\imgui\backends\imgui_impl_dx11.h" />
+    <ClInclude Include="Extensions\imgui\backends\imgui_impl_win32.h" />
+    <ClInclude Include="Extensions\imgui\imconfig.h" />
+    <ClInclude Include="Extensions\imgui\imgui.h" />
+    <ClInclude Include="Extensions\imgui\imgui_internal.h" />
+    <ClInclude Include="Extensions\imgui\imstb_rectpack.h" />
+    <ClInclude Include="Extensions\imgui\imstb_textedit.h" />
+    <ClInclude Include="Extensions\imgui\imstb_truetype.h" />
     <ClInclude Include="Game.h" />
     <ClInclude Include="GameEntity.h" />
     <ClInclude Include="Input.h" />

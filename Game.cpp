@@ -92,6 +92,8 @@ Game::~Game()
 
 	AssetLoader::getInstance().DeleteAssets();
 
+	delete renderer;
+
 }
 
 // --------------------------------------------------------
@@ -129,6 +131,8 @@ void Game::Init()
 
 	ImGui_ImplWin32_Init(hWnd);
 	ImGui_ImplDX11_Init(device.Get(), context.Get());
+
+	renderer = new Renderer(device, context, swapChain, backBufferRTV, depthStencilView, width, height, sky, entities, lights);
 
 }
 
@@ -443,6 +447,8 @@ void Game::OnResize()
 	// Handle base-level DX resize stuff
 	DXCore::OnResize();
 
+	renderer->PostResize(this->width, this->height, backBufferRTV, depthStencilView);
+
 	// Update our projection matrix to match the new aspect ratio
 	if (camera)
 		camera->UpdateProjectionMatrix(this->width / (float)this->height);
@@ -558,59 +564,7 @@ void Game::Update(float deltaTime, float totalTime)
 // --------------------------------------------------------
 void Game::Draw(float deltaTime, float totalTime)
 {
-	// Background color for clearing
-	const float color[4] = { 0, 0, 0, 1 };
-
-	// Clear the render target and depth buffer (erases what's on the screen)
-	//  - Do this ONCE PER FRAME
-	//  - At the beginning of Draw (before drawing *anything*)
-	context->ClearRenderTargetView(backBufferRTV.Get(), color);
-	context->ClearDepthStencilView(
-		depthStencilView.Get(),
-		D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL,
-		1.0f,
-		0);
-
-
-	// Draw all of the entities
-	for (auto ge : entities)
-	{
-		// Set the "per frame" data
-		// Note that this should literally be set once PER FRAME, before
-		// the draw loop, but we're currently setting it per entity since 
-		// we are just using whichever shader the current entity has.  
-		// Inefficient!!!
-		SimplePixelShader* ps = ge->GetMaterial()->GetPS();
-		ps->SetData("Lights", (void*)(&lights[0]), sizeof(Light) * lightCount);
-		ps->SetInt("LightCount", lightCount);
-		ps->SetFloat3("CameraPosition", camera->GetTransform()->GetPosition());
-		ps->CopyBufferData("perFrame");
-
-		// Draw the entity
-		ge->Draw(context, camera);
-	}
-
-	// Draw the light sources
-	DrawPointLights();
-
-	// Draw the sky
-	sky->Draw(camera);
-
-	// Draw some UI
-	DrawUI();
-
-	// Draw ImGui
-	ImGui::Render();
-	ImGui_ImplDX11_RenderDrawData(ImGui::GetDrawData());
-
-	// Present the back buffer to the user
-	//  - Puts the final frame we're drawing into the window so the user can see it
-	//  - Do this exactly ONCE PER FRAME (always at the very end of the frame)
-	swapChain->Present(0, 0);
-
-	// Due to the usage of a more sophisticated swap chain,
-	// the render target must be re-bound after every call to Present()
-	context->OMSetRenderTargets(1, backBufferRTV.GetAddressOf(), depthStencilView.Get());
+	renderer->Render(camera, lightCount);
 }
 
 
@@ -675,7 +629,7 @@ void Game::DrawPointLights()
 // --------------------------------------------------------
 // Draws a simple informational "UI" using sprite batch
 // --------------------------------------------------------
-void Game::DrawUI()
+/*void Game::DrawUI()
 {
 	spriteBatch->Begin();
 
@@ -700,4 +654,4 @@ void Game::DrawUI()
 	context->OMSetBlendState(0, 0, 0xFFFFFFFF);
 	context->OMSetDepthStencilState(0, 0);
 
-}
+}*/

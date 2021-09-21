@@ -70,7 +70,6 @@ private:
 
 	// General helpers for setup and drawing
 	void GenerateLights();
-	void DrawPointLights();
 	void DrawUI();
 
 	//Renderer

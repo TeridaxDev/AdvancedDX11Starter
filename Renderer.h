@@ -47,9 +47,9 @@ public:
 
 	void PostResize(unsigned int windowWidth, unsigned int windowHeight, Microsoft::WRL::ComPtr<ID3D11RenderTargetView> backBufferRTV, Microsoft::WRL::ComPtr<ID3D11DepthStencilView> depthBufferDSV);
 
-	void Render(Camera* camera, int lightCount);
+	void Render(Camera* camera, int lightCount, SimpleVertexShader* lightVS, SimplePixelShader* lightPS, Mesh* lightMesh);
 
-	void DrawPointLights(Camera* camera);
+	void DrawPointLights(Camera* camera, int lightCount, SimpleVertexShader* lightVS, SimplePixelShader* lightPS, Mesh* lightMesh);
 
 };
 

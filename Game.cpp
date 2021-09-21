@@ -564,65 +564,7 @@ void Game::Update(float deltaTime, float totalTime)
 // --------------------------------------------------------
 void Game::Draw(float deltaTime, float totalTime)
 {
-	renderer->Render(camera, lightCount);
-}
-
-
-// --------------------------------------------------------
-// Draws the point lights as solid color spheres
-// --------------------------------------------------------
-void Game::DrawPointLights()
-{
-	// Turn on these shaders
-	lightVS->SetShader();
-	lightPS->SetShader();
-
-	// Set up vertex shader
-	lightVS->SetMatrix4x4("view", camera->GetView());
-	lightVS->SetMatrix4x4("projection", camera->GetProjection());
-
-	for (int i = 0; i < lightCount; i++)
-	{
-		Light light = lights[i];
-
-		// Only drawing points, so skip others
-		if (light.Type != LIGHT_TYPE_POINT)
-			continue;
-
-		// Calc quick scale based on range
-		// (assuming range is between 5 - 10)
-		float scale = light.Range / 10.0f;
-
-		// Make the transform for this light
-		XMMATRIX rotMat = XMMatrixIdentity();
-		XMMATRIX scaleMat = XMMatrixScaling(scale, scale, scale);
-		XMMATRIX transMat = XMMatrixTranslation(light.Position.x, light.Position.y, light.Position.z);
-		XMMATRIX worldMat = scaleMat * rotMat * transMat;
-
-		XMFLOAT4X4 world;
-		XMFLOAT4X4 worldInvTrans;
-		XMStoreFloat4x4(&world, worldMat);
-		XMStoreFloat4x4(&worldInvTrans, XMMatrixInverse(0, XMMatrixTranspose(worldMat)));
-
-		// Set up the world matrix for this light
-		lightVS->SetMatrix4x4("world", world);
-		lightVS->SetMatrix4x4("worldInverseTranspose", worldInvTrans);
-
-		// Set up the pixel shader data
-		XMFLOAT3 finalColor = light.Color;
-		finalColor.x *= light.Intensity;
-		finalColor.y *= light.Intensity;
-		finalColor.z *= light.Intensity;
-		lightPS->SetFloat3("Color", finalColor);
-
-		// Copy data
-		lightVS->CopyAllBufferData();
-		lightPS->CopyAllBufferData();
-
-		// Draw
-		lightMesh->SetBuffersAndDraw(context);
-	}
-
+	renderer->Render(camera, lightCount, lightVS, lightPS, lightMesh);
 }
 
 

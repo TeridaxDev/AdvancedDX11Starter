@@ -10,6 +10,7 @@
 #include "Lights.h"
 #include "Sky.h"
 #include "Input.h"
+#include "Player.h"
 
 #include <DirectXMath.h>
 #include <wrl/client.h> // Used for ComPtr - a smart pointer for COM objects
@@ -46,6 +47,7 @@ private:
 	std::vector<GameEntity*> entitiesGradient;
 	std::vector<ISimpleShader*> shaders;
 	Camera* camera;
+	Player* localPlayer;
 
 	// Lights
 	std::vector<Light> lights;

@@ -79,6 +79,7 @@ Game::~Game()
 	// Delete any one-off objects
 	delete sky;
 	delete camera;
+	delete localPlayer;
 	delete arial;
 	delete spriteBatch;
 
@@ -117,10 +118,14 @@ void Game::Init()
 
 	// Make our camera
 	camera = new Camera(
-		0, 0, -10,	// Position
+		0, 0, 0,	// Position
 		3.0f,		// Move speed
 		1.0f,		// Mouse look
 		this->width / (float)this->height); // Aspect ratio
+
+	localPlayer = new Player(meshes[0], materials[0], camera);
+	camera->GetTransform()->SetParent(localPlayer->GetTransform());
+	localPlayer->GetTransform()->SetPosition(0, 0, -10);
 
 	IMGUI_CHECKVERSION();
 	ImGui::CreateContext();

@@ -11,6 +11,7 @@
 #include "Sky.h"
 #include "Input.h"
 #include "Player.h"
+#include "Renderer.h"
 
 #include <DirectXMath.h>
 #include <wrl/client.h> // Used for ComPtr - a smart pointer for COM objects
@@ -71,8 +72,10 @@ private:
 
 	// General helpers for setup and drawing
 	void GenerateLights();
-	void DrawPointLights();
 	void DrawUI();
+
+	//Renderer
+	Renderer* renderer;
 
 	// Initialization helper method
 	void LoadAssetsAndCreateEntities();

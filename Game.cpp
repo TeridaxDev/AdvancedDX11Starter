@@ -251,12 +251,12 @@ void Game::LoadAssetsAndCreateEntities()
 
 	// Create the sky using 6 images
 	sky = new Sky(
-		GetFullPathTo_Wide(L"..\\..\\Assets\\Skies\\Night\\right.png").c_str(),
-		GetFullPathTo_Wide(L"..\\..\\Assets\\Skies\\Night\\left.png").c_str(),
-		GetFullPathTo_Wide(L"..\\..\\Assets\\Skies\\Night\\up.png").c_str(),
-		GetFullPathTo_Wide(L"..\\..\\Assets\\Skies\\Night\\down.png").c_str(),
-		GetFullPathTo_Wide(L"..\\..\\Assets\\Skies\\Night\\front.png").c_str(),
-		GetFullPathTo_Wide(L"..\\..\\Assets\\Skies\\Night\\back.png").c_str(),
+		GetFullPathTo_Wide(L"..\\..\\Assets\\Skies\\Planet\\right.png").c_str(),
+		GetFullPathTo_Wide(L"..\\..\\Assets\\Skies\\Planet\\left.png").c_str(),
+		GetFullPathTo_Wide(L"..\\..\\Assets\\Skies\\Planet\\up.png").c_str(),
+		GetFullPathTo_Wide(L"..\\..\\Assets\\Skies\\Planet\\down.png").c_str(),
+		GetFullPathTo_Wide(L"..\\..\\Assets\\Skies\\Planet\\front.png").c_str(),
+		GetFullPathTo_Wide(L"..\\..\\Assets\\Skies\\Planet\\back.png").c_str(),
 		cubeMesh,
 		skyVS,
 		skyPS,
@@ -374,13 +374,13 @@ void Game::LoadAssetsAndCreateEntities()
 	entities.push_back(roughSphere);
 	entities.push_back(woodSphere);
 
-	cobSpherePBR->GetTransform()->AddChild(cobSphere->GetTransform());
-	floorSpherePBR->GetTransform()->AddChild(floorSphere->GetTransform());
-	paintSpherePBR->GetTransform()->AddChild(paintSphere->GetTransform());
-	scratchSpherePBR->GetTransform()->AddChild(scratchSphere->GetTransform());
-	bronzeSpherePBR->GetTransform()->AddChild(bronzeSphere->GetTransform());
-	roughSpherePBR->GetTransform()->AddChild(roughSphere->GetTransform());
-	woodSpherePBR->GetTransform()->AddChild(woodSphere->GetTransform());
+	//cobSpherePBR->GetTransform()->AddChild(cobSphere->GetTransform());
+	//floorSpherePBR->GetTransform()->AddChild(floorSphere->GetTransform());
+	//paintSpherePBR->GetTransform()->AddChild(paintSphere->GetTransform());
+	//scratchSpherePBR->GetTransform()->AddChild(scratchSphere->GetTransform());
+	//bronzeSpherePBR->GetTransform()->AddChild(bronzeSphere->GetTransform());
+	//roughSpherePBR->GetTransform()->AddChild(roughSphere->GetTransform());
+	//woodSpherePBR->GetTransform()->AddChild(woodSphere->GetTransform());
 
 	// Save assets needed for drawing point lights
 	// (Since these are just copies of the pointers,

@@ -1,6 +1,7 @@
 #include "Sky.h"
 #include "WICTextureLoader.h"
 #include "DDSTextureLoader.h"
+#include "AssetLoader.h"
 
 using namespace DirectX;
 
@@ -29,32 +30,30 @@ Sky::Sky(
 }
 
 Sky::Sky(
-	const wchar_t* right, 
-	const wchar_t* left, 
-	const wchar_t* up, 
-	const wchar_t* down, 
-	const wchar_t* front, 
-	const wchar_t* back, 
-	Mesh* mesh,
-	SimpleVertexShader* skyVS,
-	SimplePixelShader* skyPS,
+	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> right,
+	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> left,
+	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> up,
+	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> down,
+	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> front,
+	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> back,
 	Microsoft::WRL::ComPtr<ID3D11SamplerState> samplerOptions,
 	Microsoft::WRL::ComPtr<ID3D11Device> device,
-	Microsoft::WRL::ComPtr<ID3D11DeviceContext> context)
+	Microsoft::WRL::ComPtr<ID3D11DeviceContext> context) :
+	samplerOptions(samplerOptions),
+	device(device),
+	context(context),
+	mipLevels(0) // Will be calculated later
 {
-	// Save params
-	this->skyMesh = mesh;
-	this->device = device;
-	this->context = context;
-	this->samplerOptions = samplerOptions;
-	this->skyVS = skyVS;
-	this->skyPS = skyPS;
-
 	// Init render states
 	InitRenderStates();
 
 	// Create texture from 6 images
 	skySRV = CreateCubemap(right, left, up, down, front, back);
+
+	// Build IBL Maps
+	IBLCreateIrradianceMap();
+	//IBLCreateConvolvedSpecularMap();
+	//IBLCreateBRDFLookUpTexture();
 }
 
 Sky::~Sky()
@@ -63,6 +62,11 @@ Sky::~Sky()
 
 void Sky::Draw(Camera* camera)
 {
+	Assets& assets = Assets::GetInstance();
+	SimpleVertexShader* skyVS = assets.GetVertexShader("SkyVS.cso");
+	SimplePixelShader* skyPS = assets.GetPixelShader("SkyPS.cso");
+	Mesh* skyMesh = assets.GetMesh("Models\\cube.obj");
+
 	// Change to the sky-specific rasterizer state
 	context->RSSetState(skyRasterState.Get());
 	context->OMSetDepthStencilState(skyDepthState.Get(), 0);
@@ -105,24 +109,30 @@ void Sky::InitRenderStates()
 	device->CreateDepthStencilState(&depthDesc, skyDepthState.GetAddressOf());
 }
 
-Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> Sky::CreateCubemap(const wchar_t* right, const wchar_t* left, const wchar_t* up, const wchar_t* down, const wchar_t* front, const wchar_t* back)
+Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> Sky::CreateCubemap(
+	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> right,
+	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> left,
+	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> up,
+	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> down,
+	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> front,
+	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> back)
 {
 	// Load the 6 textures into an array.
 	// - We need references to the TEXTURES, not the SHADER RESOURCE VIEWS!
 	// - Specifically NOT generating mipmaps, as we don't need them for the sky!
 	// - Order matters here!  +X, -X, +Y, -Y, +Z, -Z
-	ID3D11Texture2D* textures[6] = {};
-	CreateWICTextureFromFile(device.Get(), right, (ID3D11Resource**)&textures[0], 0);
-	CreateWICTextureFromFile(device.Get(), left, (ID3D11Resource**)&textures[1], 0);
-	CreateWICTextureFromFile(device.Get(), up, (ID3D11Resource**)&textures[2], 0);
-	CreateWICTextureFromFile(device.Get(), down, (ID3D11Resource**)&textures[3], 0);
-	CreateWICTextureFromFile(device.Get(), front, (ID3D11Resource**)&textures[4], 0);
-	CreateWICTextureFromFile(device.Get(), back, (ID3D11Resource**)&textures[5], 0);
+	ID3D11Resource* textures[6] = {};
+	right.Get()->GetResource(&textures[0]);
+	left.Get()->GetResource(&textures[1]);
+	up.Get()->GetResource(&textures[2]);
+	down.Get()->GetResource(&textures[3]);
+	front.Get()->GetResource(&textures[4]);
+	back.Get()->GetResource(&textures[5]);
 
 	// We'll assume all of the textures are the same color format and resolution,
 	// so get the description of the first shader resource view
 	D3D11_TEXTURE2D_DESC faceDesc = {};
-	textures[0]->GetDesc(&faceDesc);
+	((ID3D11Texture2D*)textures[0])->GetDesc(&faceDesc);
 
 	// Describe the resource for the cube map, which is simply 
 	// a "texture 2d array".  This is a special GPU resource format, 
@@ -183,4 +193,112 @@ Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> Sky::CreateCubemap(const wchar_
 
 	// Send back the SRV, which is what we need for our shaders
 	return cubeSRV;
+}
+
+void Sky::IBLCreateIrradianceMap()
+{
+
+	printf("Creating irradiance map...");
+
+	Microsoft::WRL::ComPtr<ID3D11Texture2D> irrMapFinalTexture;
+
+	// Create the final irradiance cube texture
+	D3D11_TEXTURE2D_DESC texDesc = {};
+	texDesc.Width = mipFaceSize;
+	texDesc.Height = mipFaceSize;
+	texDesc.ArraySize = 6; // Cube map means 6 textures
+	texDesc.BindFlags = D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE;
+	texDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;  // Basic texture format
+	texDesc.MipLevels = 1; // No mip chain needed
+	texDesc.MiscFlags = D3D11_RESOURCE_MISC_TEXTURECUBE; // It's a cube map
+	texDesc.SampleDesc.Count = 1; // Can't be zero
+	device->CreateTexture2D(&texDesc, 0, irrMapFinalTexture.GetAddressOf());
+
+
+	// Create an SRV for the irradiance texture
+	D3D11_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+	srvDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURECUBE;	// Treat this resource as a cube map
+	srvDesc.TextureCube.MipLevels = 1;			// Only 1 mip level
+	srvDesc.TextureCube.MostDetailedMip = 0;	// Accessing the first (and only) mip
+	srvDesc.Format = texDesc.Format;			// Same format as texture
+	device->CreateShaderResourceView(irrMapFinalTexture.Get(), &srvDesc, irradianceCM.GetAddressOf());
+
+	// Save current render target and depth buffer
+	Microsoft::WRL::ComPtr<ID3D11RenderTargetView> prevRTV;
+	Microsoft::WRL::ComPtr<ID3D11DepthStencilView> prevDSV;
+	context->OMGetRenderTargets(1, prevRTV.GetAddressOf(), prevDSV.GetAddressOf());
+
+	// Save current viewport
+	unsigned int vpCount = 1;
+	D3D11_VIEWPORT prevVP = {};
+	context->RSGetViewports(&vpCount, &prevVP);
+
+	// Make sure the viewport matches the texture size
+	D3D11_VIEWPORT vp = {};
+	vp.Width = (float)mipFaceSize;
+	vp.Height = (float)mipFaceSize;
+	vp.MinDepth = 0.0f;
+	vp.MaxDepth = 1.0f;
+	context->RSSetViewports(1, &vp);
+
+	// Set states that may or may not be set yet
+	context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+
+
+	Assets& assets = Assets::GetInstance();
+	SimpleVertexShader* fullscreenVS = assets.GetVertexShader("FullscreenVS.cso");
+	SimplePixelShader* irradiancePS = assets.GetPixelShader("IBLIrradianceMapPS.cso");
+
+	fullscreenVS->SetShader();
+	irradiancePS->SetShader();
+	irradiancePS->SetShaderResourceView("EnvironmentMap", skySRV.Get());
+	irradiancePS->SetSamplerState("BasicSampler", samplerOptions.Get());
+
+	// Loop through the six cubemap faces and calculate 
+	// the irradiance for each, resulting in a full 360 degree
+	// irradiance map, once completed
+	for (int face = 0; face < 6; face++)
+	{
+		// Make a render target view for this face
+		D3D11_RENDER_TARGET_VIEW_DESC rtvDesc = {};
+		rtvDesc.ViewDimension = D3D11_RTV_DIMENSION_TEXTURE2DARRAY;	// This points to a Texture2D Array
+		rtvDesc.Texture2DArray.ArraySize = 1;			// How much of the array do we need access to?
+		rtvDesc.Texture2DArray.FirstArraySlice = face;	// Which texture are we rendering into?
+		rtvDesc.Texture2DArray.MipSlice = 0;			// Which mip of that texture are we rendering into?
+		rtvDesc.Format = texDesc.Format;				// Same format as texture
+
+		// Create the render target view itself
+		Microsoft::WRL::ComPtr<ID3D11RenderTargetView> rtv;
+		device->CreateRenderTargetView(irrMapFinalTexture.Get(), &rtvDesc, rtv.GetAddressOf());
+
+		// Clear and set this render target
+		float black[4] = {}; // Initialize to all zeroes
+		context->ClearRenderTargetView(rtv.Get(), black);
+		context->OMSetRenderTargets(1, rtv.GetAddressOf(), 0);
+
+		// Per-face shader data and copy
+		irradiancePS->SetInt("faceIndex", face);
+		irradiancePS->SetFloat("sampleStepPhi", 0.025f);
+		irradiancePS->SetFloat("sampleStepTheta", 0.025f);
+		irradiancePS->CopyAllBufferData();
+
+		// Render exactly 3 vertices
+		context->Draw(3, 0);
+
+		// Ensure we flush the graphics pipe to so that we don't cause 
+		// a hardware timeout which can result in a driver crash
+		// NOTE: This might make C++ sit and wait for a sec!  Better than a crash!
+		context->Flush();
+	}
+
+
+	// == Restore old states & release refs =========================
+
+	// Restore the old render target and viewport
+	context->OMSetRenderTargets(1, prevRTV.GetAddressOf(), prevDSV.Get());
+	context->RSSetViewports(1, &prevVP);
+
+
+	printf("Complete.\n");
+
 }

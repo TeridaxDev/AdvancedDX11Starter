@@ -21,23 +21,25 @@ public:
 		Microsoft::WRL::ComPtr<ID3D11DeviceContext> context
 	);
 
-	// Constructor that loads 6 textures and makes a cube map
+	// Constructor that takes 6 existing SRVs and makes a cube map
 	Sky(
-		const wchar_t* right,
-		const wchar_t* left,
-		const wchar_t* up,
-		const wchar_t* down,
-		const wchar_t* front,
-		const wchar_t* back,
-		Mesh* mesh,
-		SimpleVertexShader* skyVS,
-		SimplePixelShader* skyPS,
+		Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> right,
+		Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> left,
+		Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> up,
+		Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> down,
+		Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> front,
+		Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> back,
 		Microsoft::WRL::ComPtr<ID3D11SamplerState> samplerOptions,
 		Microsoft::WRL::ComPtr<ID3D11Device> device,
 		Microsoft::WRL::ComPtr<ID3D11DeviceContext> context
 	);
 
 	~Sky();
+
+	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> IBLGetIrradianceMap();
+	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> IBLGetConvolvedSpecularMap();
+	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> IBLGetBRDFLookupTexture();
+	int IBLGetMipLevels();
 
 	void Draw(Camera* camera);
 
@@ -47,12 +49,12 @@ private:
 
 	// Helper for creating a cubemap from 6 individual textures
 	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> CreateCubemap(
-		const wchar_t* right,
-		const wchar_t* left,
-		const wchar_t* up,
-		const wchar_t* down,
-		const wchar_t* front,
-		const wchar_t* back);
+		Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> right,
+		Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> left,
+		Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> up,
+		Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> down,
+		Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> front,
+		Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> back);
 
 	// Skybox related resources
 	SimpleVertexShader* skyVS;
@@ -73,8 +75,8 @@ private:
 	const int lookupSize = 512;
 
 	void IBLCreateIrradianceMap();
-	void IBLCreateConvolvedSpecularMap();
-	void IBLCreateBRDFLookUpTexture();
+	//void IBLCreateConvolvedSpecularMap();
+	//void IBLCreateBRDFLookUpTexture();
 
 	Microsoft::WRL::ComPtr<ID3D11SamplerState> samplerOptions;
 	Microsoft::WRL::ComPtr<ID3D11DeviceContext> context;

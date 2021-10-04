@@ -71,8 +71,6 @@ Game::~Game()
 	//   to call Release() on each DirectX object
 
 	// Clean up our other resources
-	for (auto& m : meshes) delete m;
-	for (auto& s : shaders) delete s; 
 	for (auto& m : materials) delete m;
 	for (auto& e : entities) delete e;
 
@@ -124,9 +122,9 @@ void Game::Init()
 		1.0f,		// Mouse look
 		this->width / (float)this->height); // Aspect ratio
 
-	localPlayer = new Player(meshes[0], materials[0], camera);
-	camera->GetTransform()->SetParent(localPlayer->GetTransform());
-	localPlayer->GetTransform()->SetPosition(0, 0, -10);
+	//localPlayer = new Player(Assets::GetInstance().GetMesh("Models\\sphere.obj"), materials[0], camera);
+	//camera->GetTransform()->SetParent(localPlayer->GetTransform());
+	//localPlayer->GetTransform()->SetPosition(0, 0, -10);
 
 	IMGUI_CHECKVERSION();
 	ImGui::CreateContext();
@@ -148,7 +146,7 @@ void Game::LoadAssetsAndCreateEntities()
 {
 
 	Assets& assets = Assets::GetInstance();
-	assets.Initialize("..\\..\\..\\Assets\\", device, context);
+	assets.Initialize("..\\..\\Assets\\", device, context);
 	assets.LoadAllAssets();
 
 
@@ -186,6 +184,10 @@ void Game::LoadAssetsAndCreateEntities()
 	SimpleVertexShader* vs = assets.GetVertexShader("VertexShader.cso");
 	SimplePixelShader* ps = assets.GetPixelShader("PixelShader.cso");
 	SimplePixelShader* psPBR = assets.GetPixelShader("PixelShaderPBR.cso");
+
+	lightMesh = assets.GetMesh("Models\\sphere.obj");
+	lightVS = vs;
+	lightPS = assets.GetPixelShader("SolidColorPS.cso");
 
 	// Create basic materials
 	Material* cobbleMat2x = new Material(vs, ps, XMFLOAT4(1, 1, 1, 1), 256.0f, XMFLOAT2(2, 2));

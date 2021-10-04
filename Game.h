@@ -39,14 +39,9 @@ private:
 	byte prevKeys[256];
 
 	// Keep track of "stuff" to clean up
-	std::vector<Mesh*> meshes;
 	std::vector<Material*> materials;
 	std::vector<GameEntity*>* currentScene;
 	std::vector<GameEntity*> entities;
-	std::vector<GameEntity*> entitiesRandom;
-	std::vector<GameEntity*> entitiesLineup;
-	std::vector<GameEntity*> entitiesGradient;
-	std::vector<ISimpleShader*> shaders;
 	Camera* camera;
 	Player* localPlayer;
 

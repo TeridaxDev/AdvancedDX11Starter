@@ -85,13 +85,12 @@ Game::~Game()
 
 	// Delete singletons
 	delete& Input::GetInstance();
+	delete& Assets::GetInstance();
 
 	// ImGui cleanup
 	ImGui_ImplDX11_Shutdown();
 	ImGui_ImplWin32_Shutdown();
 	ImGui::DestroyContext();
-
-	AssetLoader::getInstance().DeleteAssets();
 
 	delete renderer;
 
@@ -148,85 +147,10 @@ void Game::Init()
 void Game::LoadAssetsAndCreateEntities()
 {
 
-	AssetLoader::getInstance().LoadAssets(device, context);
+	Assets& assets = Assets::GetInstance();
+	assets.Initialize("..\\..\\..\\Assets\\", device, context);
+	assets.LoadAllAssets();
 
-	// Load shaders using our succinct LoadShader() macro
-	SimpleVertexShader* vertexShader	= LoadShader(SimpleVertexShader, L"VertexShader.cso");
-	SimplePixelShader* pixelShader		= LoadShader(SimplePixelShader, L"PixelShader.cso");
-	SimplePixelShader* pixelShaderPBR	= LoadShader(SimplePixelShader, L"PixelShaderPBR.cso");
-	SimplePixelShader* solidColorPS		= LoadShader(SimplePixelShader, L"SolidColorPS.cso");
-	
-	SimpleVertexShader* skyVS = LoadShader(SimpleVertexShader, L"SkyVS.cso");
-	SimplePixelShader* skyPS  = LoadShader(SimplePixelShader, L"SkyPS.cso");
-
-	shaders.push_back(vertexShader);
-	shaders.push_back(pixelShader);
-	shaders.push_back(pixelShaderPBR);
-	shaders.push_back(solidColorPS);
-	shaders.push_back(skyVS);
-	shaders.push_back(skyPS);
-
-	// Set up the sprite batch and load the sprite font
-	spriteBatch = new SpriteBatch(context.Get());
-	arial = new SpriteFont(device.Get(), GetFullPathTo_Wide(L"../../Assets/Textures/arial.spritefont").c_str());
-
-	// Make the meshes
-	Mesh* sphereMesh = new Mesh(GetFullPathTo("../../Assets/Models/sphere.obj").c_str(), device);
-	Mesh* helixMesh = new Mesh(GetFullPathTo("../../Assets/Models/helix.obj").c_str(), device);
-	Mesh* cubeMesh = new Mesh(GetFullPathTo("../../Assets/Models/cube.obj").c_str(), device);
-	Mesh* coneMesh = new Mesh(GetFullPathTo("../../Assets/Models/cone.obj").c_str(), device);
-
-	meshes.push_back(sphereMesh);
-	meshes.push_back(helixMesh);
-	meshes.push_back(cubeMesh);
-	meshes.push_back(coneMesh);
-
-	
-	// Declare the textures we'll need
-	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> cobbleA,  cobbleN,  cobbleR,  cobbleM;
-	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> floorA,  floorN,  floorR,  floorM;
-	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> paintA,  paintN,  paintR,  paintM;
-	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> scratchedA,  scratchedN,  scratchedR,  scratchedM;
-	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> bronzeA,  bronzeN,  bronzeR,  bronzeM;
-	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> roughA,  roughN,  roughR,  roughM;
-	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> woodA,  woodN,  woodR,  woodM;
-
-	cobbleA = AssetLoader::getInstance().GetTexture("cobblestone_albedo.png");
-	cobbleA = AssetLoader::getInstance().GetTexture("cobblestone_normals.png");
-	cobbleA = AssetLoader::getInstance().GetTexture("cobblestone_roughness.png");
-	cobbleA = AssetLoader::getInstance().GetTexture("cobblestone_metal.png");
-
-	// Load the textures using our succinct LoadTexture() macro
-
-	LoadTexture(L"../../Assets/Textures/floor_albedo.png", floorA);
-	LoadTexture(L"../../Assets/Textures/floor_normals.png", floorN);
-	LoadTexture(L"../../Assets/Textures/floor_roughness.png", floorR);
-	LoadTexture(L"../../Assets/Textures/floor_metal.png", floorM);
-	
-	LoadTexture(L"../../Assets/Textures/paint_albedo.png", paintA);
-	LoadTexture(L"../../Assets/Textures/paint_normals.png", paintN);
-	LoadTexture(L"../../Assets/Textures/paint_roughness.png", paintR);
-	LoadTexture(L"../../Assets/Textures/paint_metal.png", paintM);
-	
-	LoadTexture(L"../../Assets/Textures/scratched_albedo.png", scratchedA);
-	LoadTexture(L"../../Assets/Textures/scratched_normals.png", scratchedN);
-	LoadTexture(L"../../Assets/Textures/scratched_roughness.png", scratchedR);
-	LoadTexture(L"../../Assets/Textures/scratched_metal.png", scratchedM);
-	
-	LoadTexture(L"../../Assets/Textures/bronze_albedo.png", bronzeA);
-	LoadTexture(L"../../Assets/Textures/bronze_normals.png", bronzeN);
-	LoadTexture(L"../../Assets/Textures/bronze_roughness.png", bronzeR);
-	LoadTexture(L"../../Assets/Textures/bronze_metal.png", bronzeM);
-	
-	LoadTexture(L"../../Assets/Textures/rough_albedo.png", roughA);
-	LoadTexture(L"../../Assets/Textures/rough_normals.png", roughN);
-	LoadTexture(L"../../Assets/Textures/rough_roughness.png", roughR);
-	LoadTexture(L"../../Assets/Textures/rough_metal.png", roughM);
-	
-	LoadTexture(L"../../Assets/Textures/wood_albedo.png", woodA);
-	LoadTexture(L"../../Assets/Textures/wood_normals.png", woodN);
-	LoadTexture(L"../../Assets/Textures/wood_roughness.png", woodR);
-	LoadTexture(L"../../Assets/Textures/wood_metal.png", woodM);
 
 	// Describe and create our sampler state
 	D3D11_SAMPLER_DESC sampDesc = {};
@@ -238,40 +162,74 @@ void Game::LoadAssetsAndCreateEntities()
 	sampDesc.MaxLOD = D3D11_FLOAT32_MAX;
 	device->CreateSamplerState(&sampDesc, samplerOptions.GetAddressOf());
 
+	// Also create a clamp sampler
+	sampDesc.AddressU = D3D11_TEXTURE_ADDRESS_CLAMP;
+	sampDesc.AddressV = D3D11_TEXTURE_ADDRESS_CLAMP;
+	sampDesc.AddressW = D3D11_TEXTURE_ADDRESS_CLAMP;
+	device->CreateSamplerState(&sampDesc, clampSampler.GetAddressOf());
 
-	// Create the sky using a DDS cube map
-	/*sky = new Sky(
-		GetFullPathTo_Wide(L"..\\..\\Assets\\Skies\\SunnyCubeMap.dds").c_str(),
-		cubeMesh,
-		skyVS,
-		skyPS,
-		samplerOptions,
-		device,
-		context);*/
 
-	// Create the sky using 6 images
+	// Create the sky
 	sky = new Sky(
-		GetFullPathTo_Wide(L"..\\..\\Assets\\Skies\\Planet\\right.png").c_str(),
-		GetFullPathTo_Wide(L"..\\..\\Assets\\Skies\\Planet\\left.png").c_str(),
-		GetFullPathTo_Wide(L"..\\..\\Assets\\Skies\\Planet\\up.png").c_str(),
-		GetFullPathTo_Wide(L"..\\..\\Assets\\Skies\\Planet\\down.png").c_str(),
-		GetFullPathTo_Wide(L"..\\..\\Assets\\Skies\\Planet\\front.png").c_str(),
-		GetFullPathTo_Wide(L"..\\..\\Assets\\Skies\\Planet\\back.png").c_str(),
-		cubeMesh,
-		skyVS,
-		skyPS,
+		/*assets.GetTexture("Skies\\SunnyCubeMap.dds"),*/
+		assets.GetTexture("Skies\\Planet\\right.png"),
+		assets.GetTexture("Skies\\Planet\\left.png"),
+		assets.GetTexture("Skies\\Planet\\up.png"),
+		assets.GetTexture("Skies\\Planet\\down.png"),
+		assets.GetTexture("Skies\\Planet\\front.png"),
+		assets.GetTexture("Skies\\Planet\\back.png"),
 		samplerOptions,
 		device,
 		context);
 
+	// Grab basic shaders for all these materials
+	SimpleVertexShader* vs = assets.GetVertexShader("VertexShader.cso");
+	SimplePixelShader* ps = assets.GetPixelShader("PixelShader.cso");
+	SimplePixelShader* psPBR = assets.GetPixelShader("PixelShaderPBR.cso");
+
 	// Create basic materials
-	Material* cobbleMat2x = new Material(vertexShader, pixelShader, XMFLOAT4(1, 1, 1, 1), 256.0f, XMFLOAT2(2, 2), cobbleA, cobbleN, cobbleR, cobbleM, samplerOptions);
-	Material* floorMat = new Material(vertexShader, pixelShader, XMFLOAT4(1, 1, 1, 1), 256.0f, XMFLOAT2(2, 2), floorA, floorN, floorR, floorM, samplerOptions);
-	Material* paintMat = new Material(vertexShader, pixelShader, XMFLOAT4(1, 1, 1, 1), 256.0f, XMFLOAT2(2, 2), paintA, paintN, paintR, paintM, samplerOptions);
-	Material* scratchedMat = new Material(vertexShader, pixelShader, XMFLOAT4(1, 1, 1, 1), 256.0f, XMFLOAT2(2, 2), scratchedA, scratchedN, scratchedR, scratchedM, samplerOptions);
-	Material* bronzeMat = new Material(vertexShader, pixelShader, XMFLOAT4(1, 1, 1, 1), 256.0f, XMFLOAT2(2, 2), bronzeA, bronzeN, bronzeR, bronzeM, samplerOptions);
-	Material* roughMat = new Material(vertexShader, pixelShader, XMFLOAT4(1, 1, 1, 1), 256.0f, XMFLOAT2(2, 2), roughA, roughN, roughR, roughM, samplerOptions);
-	Material* woodMat = new Material(vertexShader, pixelShader, XMFLOAT4(1, 1, 1, 1), 256.0f, XMFLOAT2(2, 2), woodA, woodN, woodR, woodM, samplerOptions);
+	Material* cobbleMat2x = new Material(vs, ps, XMFLOAT4(1, 1, 1, 1), 256.0f, XMFLOAT2(2, 2));
+	cobbleMat2x->AddPSTextureSRV("AlbedoTexture", assets.GetTexture("Textures\\cobblestone_albedo.png"));
+	cobbleMat2x->AddPSTextureSRV("NormalTexture", assets.GetTexture("Textures\\cobblestone_normals.png"));
+	cobbleMat2x->AddPSTextureSRV("RoughnessTexture", assets.GetTexture("Textures\\cobblestone_roughness.png"));
+	cobbleMat2x->AddPSSampler("BasicSampler", samplerOptions);
+
+	Material* floorMat = new Material(vs, ps, XMFLOAT4(1, 1, 1, 1), 256.0f, XMFLOAT2(2, 2));
+	floorMat->AddPSTextureSRV("AlbedoTexture", assets.GetTexture("Textures\\floor_albedo.png"));
+	floorMat->AddPSTextureSRV("NormalTexture", assets.GetTexture("Textures\\floor_normals.png"));
+	floorMat->AddPSTextureSRV("RoughnessTexture", assets.GetTexture("Textures\\floor_roughness.png"));
+	floorMat->AddPSSampler("BasicSampler", samplerOptions);
+
+	Material* paintMat = new Material(vs, ps, XMFLOAT4(1, 1, 1, 1), 256.0f, XMFLOAT2(2, 2));
+	paintMat->AddPSTextureSRV("AlbedoTexture", assets.GetTexture("Textures\\paint_albedo.png"));
+	paintMat->AddPSTextureSRV("NormalTexture", assets.GetTexture("Textures\\paint_normals.png"));
+	paintMat->AddPSTextureSRV("RoughnessTexture", assets.GetTexture("Textures\\paint_roughness.png"));
+	paintMat->AddPSSampler("BasicSampler", samplerOptions);
+
+	Material* scratchedMat = new Material(vs, ps, XMFLOAT4(1, 1, 1, 1), 256.0f, XMFLOAT2(2, 2));
+	scratchedMat->AddPSTextureSRV("AlbedoTexture", assets.GetTexture("Textures\\scratched_albedo.png"));
+	scratchedMat->AddPSTextureSRV("NormalTexture", assets.GetTexture("Textures\\scratched_normals.png"));
+	scratchedMat->AddPSTextureSRV("RoughnessTexture", assets.GetTexture("Textures\\scratched_roughness.png"));
+	scratchedMat->AddPSSampler("BasicSampler", samplerOptions);
+
+	Material* bronzeMat = new Material(vs, ps, XMFLOAT4(1, 1, 1, 1), 256.0f, XMFLOAT2(2, 2));
+	bronzeMat->AddPSTextureSRV("AlbedoTexture", assets.GetTexture("Textures\\bronze_albedo.png"));
+	bronzeMat->AddPSTextureSRV("NormalTexture", assets.GetTexture("Textures\\bronze_normals.png"));
+	bronzeMat->AddPSTextureSRV("RoughnessTexture", assets.GetTexture("Textures\\bronze_roughness.png"));
+	bronzeMat->AddPSSampler("BasicSampler", samplerOptions);
+
+	Material* roughMat = new Material(vs, ps, XMFLOAT4(1, 1, 1, 1), 256.0f, XMFLOAT2(2, 2));
+	roughMat->AddPSTextureSRV("AlbedoTexture", assets.GetTexture("Textures\\rough_albedo.png"));
+	roughMat->AddPSTextureSRV("NormalTexture", assets.GetTexture("Textures\\rough_normals.png"));
+	roughMat->AddPSTextureSRV("RoughnessTexture", assets.GetTexture("Textures\\rough_roughness.png"));
+	roughMat->AddPSSampler("BasicSampler", samplerOptions);
+
+	Material* woodMat = new Material(vs, ps, XMFLOAT4(1, 1, 1, 1), 256.0f, XMFLOAT2(2, 2));
+	woodMat->AddPSTextureSRV("AlbedoTexture", assets.GetTexture("Textures\\wood_albedo.png"));
+	woodMat->AddPSTextureSRV("NormalTexture", assets.GetTexture("Textures\\wood_normals.png"));
+	woodMat->AddPSTextureSRV("RoughnessTexture", assets.GetTexture("Textures\\wood_roughness.png"));
+	woodMat->AddPSSampler("BasicSampler", samplerOptions);
+
 
 	materials.push_back(cobbleMat2x);
 	materials.push_back(floorMat);
@@ -282,13 +240,61 @@ void Game::LoadAssetsAndCreateEntities()
 	materials.push_back(woodMat);
 
 	// Create PBR materials
-	Material* cobbleMat2xPBR = new Material(vertexShader, pixelShaderPBR, XMFLOAT4(1, 1, 1, 1), 256.0f, XMFLOAT2(2, 2), cobbleA, cobbleN, cobbleR, cobbleM, samplerOptions);
-	Material* floorMatPBR = new Material(vertexShader, pixelShaderPBR, XMFLOAT4(1, 1, 1, 1), 256.0f, XMFLOAT2(2, 2), floorA, floorN, floorR, floorM, samplerOptions);
-	Material* paintMatPBR = new Material(vertexShader, pixelShaderPBR, XMFLOAT4(1, 1, 1, 1), 256.0f, XMFLOAT2(2, 2), paintA, paintN, paintR, paintM, samplerOptions);
-	Material* scratchedMatPBR = new Material(vertexShader, pixelShaderPBR, XMFLOAT4(1, 1, 1, 1), 256.0f, XMFLOAT2(2, 2), scratchedA, scratchedN, scratchedR, scratchedM, samplerOptions);
-	Material* bronzeMatPBR = new Material(vertexShader, pixelShaderPBR, XMFLOAT4(1, 1, 1, 1), 256.0f, XMFLOAT2(2, 2), bronzeA, bronzeN, bronzeR, bronzeM, samplerOptions);
-	Material* roughMatPBR = new Material(vertexShader, pixelShaderPBR, XMFLOAT4(1, 1, 1, 1), 256.0f, XMFLOAT2(2, 2), roughA, roughN, roughR, roughM, samplerOptions);
-	Material* woodMatPBR = new Material(vertexShader, pixelShaderPBR, XMFLOAT4(1, 1, 1, 1), 256.0f, XMFLOAT2(2, 2), woodA, woodN, woodR, woodM, samplerOptions);
+	Material* cobbleMat2xPBR = new Material(vs, psPBR, XMFLOAT4(1, 1, 1, 1), 256.0f, XMFLOAT2(2, 2));
+	cobbleMat2xPBR->AddPSTextureSRV("AlbedoTexture", assets.GetTexture("Textures\\cobblestone_albedo.png"));
+	cobbleMat2xPBR->AddPSTextureSRV("NormalTexture", assets.GetTexture("Textures\\cobblestone_normals.png"));
+	cobbleMat2xPBR->AddPSTextureSRV("RoughnessTexture", assets.GetTexture("Textures\\cobblestone_roughness.png"));
+	cobbleMat2xPBR->AddPSTextureSRV("MetalTexture", assets.GetTexture("Textures\\cobblestone_metal.png"));
+	cobbleMat2xPBR->AddPSSampler("BasicSampler", samplerOptions);
+	cobbleMat2xPBR->AddPSSampler("ClampSampler", clampSampler);
+
+	Material* floorMatPBR = new Material(vs, psPBR, XMFLOAT4(1, 1, 1, 1), 256.0f, XMFLOAT2(2, 2));
+	floorMatPBR->AddPSTextureSRV("AlbedoTexture", assets.GetTexture("Textures\\floor_albedo.png"));
+	floorMatPBR->AddPSTextureSRV("NormalTexture", assets.GetTexture("Textures\\floor_normals.png"));
+	floorMatPBR->AddPSTextureSRV("RoughnessTexture", assets.GetTexture("Textures\\floor_roughness.png"));
+	floorMatPBR->AddPSTextureSRV("MetalTexture", assets.GetTexture("Textures\\floor_metal.png"));
+	floorMatPBR->AddPSSampler("BasicSampler", samplerOptions);
+	floorMatPBR->AddPSSampler("ClampSampler", clampSampler);
+
+	Material* paintMatPBR = new Material(vs, psPBR, XMFLOAT4(1, 1, 1, 1), 256.0f, XMFLOAT2(2, 2));
+	paintMatPBR->AddPSTextureSRV("AlbedoTexture", assets.GetTexture("Textures\\paint_albedo.png"));
+	paintMatPBR->AddPSTextureSRV("NormalTexture", assets.GetTexture("Textures\\paint_normals.png"));
+	paintMatPBR->AddPSTextureSRV("RoughnessTexture", assets.GetTexture("Textures\\paint_roughness.png"));
+	paintMatPBR->AddPSTextureSRV("MetalTexture", assets.GetTexture("Textures\\paint_metal.png"));
+	paintMatPBR->AddPSSampler("BasicSampler", samplerOptions);
+	paintMatPBR->AddPSSampler("ClampSampler", clampSampler);
+
+	Material* scratchedMatPBR = new Material(vs, psPBR, XMFLOAT4(1, 1, 1, 1), 256.0f, XMFLOAT2(2, 2));
+	scratchedMatPBR->AddPSTextureSRV("AlbedoTexture", assets.GetTexture("Textures\\scratched_albedo.png"));
+	scratchedMatPBR->AddPSTextureSRV("NormalTexture", assets.GetTexture("Textures\\scratched_normals.png"));
+	scratchedMatPBR->AddPSTextureSRV("RoughnessTexture", assets.GetTexture("Textures\\scratched_roughness.png"));
+	scratchedMatPBR->AddPSTextureSRV("MetalTexture", assets.GetTexture("Textures\\scratched_metal.png"));
+	scratchedMatPBR->AddPSSampler("BasicSampler", samplerOptions);
+	scratchedMatPBR->AddPSSampler("ClampSampler", clampSampler);
+
+	Material* bronzeMatPBR = new Material(vs, psPBR, XMFLOAT4(1, 1, 1, 1), 256.0f, XMFLOAT2(2, 2));
+	bronzeMatPBR->AddPSTextureSRV("AlbedoTexture", assets.GetTexture("Textures\\bronze_albedo.png"));
+	bronzeMatPBR->AddPSTextureSRV("NormalTexture", assets.GetTexture("Textures\\bronze_normals.png"));
+	bronzeMatPBR->AddPSTextureSRV("RoughnessTexture", assets.GetTexture("Textures\\bronze_roughness.png"));
+	bronzeMatPBR->AddPSTextureSRV("MetalTexture", assets.GetTexture("Textures\\bronze_metal.png"));
+	bronzeMatPBR->AddPSSampler("BasicSampler", samplerOptions);
+	bronzeMatPBR->AddPSSampler("ClampSampler", clampSampler);
+
+	Material* roughMatPBR = new Material(vs, psPBR, XMFLOAT4(1, 1, 1, 1), 256.0f, XMFLOAT2(2, 2));
+	roughMatPBR->AddPSTextureSRV("AlbedoTexture", assets.GetTexture("Textures\\rough_albedo.png"));
+	roughMatPBR->AddPSTextureSRV("NormalTexture", assets.GetTexture("Textures\\rough_normals.png"));
+	roughMatPBR->AddPSTextureSRV("RoughnessTexture", assets.GetTexture("Textures\\rough_roughness.png"));
+	roughMatPBR->AddPSTextureSRV("MetalTexture", assets.GetTexture("Textures\\rough_metal.png"));
+	roughMatPBR->AddPSSampler("BasicSampler", samplerOptions);
+	roughMatPBR->AddPSSampler("ClampSampler", clampSampler);
+
+	Material* woodMatPBR = new Material(vs, psPBR, XMFLOAT4(1, 1, 1, 1), 256.0f, XMFLOAT2(2, 2));
+	woodMatPBR->AddPSTextureSRV("AlbedoTexture", assets.GetTexture("Textures\\wood_albedo.png"));
+	woodMatPBR->AddPSTextureSRV("NormalTexture", assets.GetTexture("Textures\\wood_normals.png"));
+	woodMatPBR->AddPSTextureSRV("RoughnessTexture", assets.GetTexture("Textures\\wood_roughness.png"));
+	woodMatPBR->AddPSTextureSRV("MetalTexture", assets.GetTexture("Textures\\wood_metal.png"));
+	woodMatPBR->AddPSSampler("BasicSampler", samplerOptions);
+	woodMatPBR->AddPSSampler("ClampSampler", clampSampler);
 
 	materials.push_back(cobbleMat2xPBR);
 	materials.push_back(floorMatPBR);
@@ -299,8 +305,9 @@ void Game::LoadAssetsAndCreateEntities()
 	materials.push_back(woodMatPBR);
 
 
-
 	// === Create the PBR entities =====================================
+	Mesh* sphereMesh = assets.GetMesh("Models\\sphere.obj");
+
 	GameEntity* cobSpherePBR = new GameEntity(sphereMesh, cobbleMat2xPBR);
 	cobSpherePBR->GetTransform()->SetScale(2, 2, 2);
 	cobSpherePBR->GetTransform()->SetPosition(-6, 2, 0);
@@ -374,21 +381,97 @@ void Game::LoadAssetsAndCreateEntities()
 	entities.push_back(roughSphere);
 	entities.push_back(woodSphere);
 
-	//cobSpherePBR->GetTransform()->AddChild(cobSphere->GetTransform());
-	//floorSpherePBR->GetTransform()->AddChild(floorSphere->GetTransform());
-	//paintSpherePBR->GetTransform()->AddChild(paintSphere->GetTransform());
-	//scratchSpherePBR->GetTransform()->AddChild(scratchSphere->GetTransform());
-	//bronzeSpherePBR->GetTransform()->AddChild(bronzeSphere->GetTransform());
-	//roughSpherePBR->GetTransform()->AddChild(roughSphere->GetTransform());
-	//woodSpherePBR->GetTransform()->AddChild(woodSphere->GetTransform());
 
-	// Save assets needed for drawing point lights
-	// (Since these are just copies of the pointers,
-	//  we won't need to directly delete them as 
-	//  the original pointers will be cleaned up)
-	lightMesh = sphereMesh;
-	lightVS = vertexShader;
-	lightPS = solidColorPS;
+	// Create simple PBR materials & entities (mostly for IBL testing)
+	assets.CreateSolidColorTexture("white", 2, 2, XMFLOAT4(1, 1, 1, 1));
+	assets.CreateSolidColorTexture("black", 2, 2, XMFLOAT4(0, 0, 0, 0));
+	assets.CreateSolidColorTexture("grey", 2, 2, XMFLOAT4(0.5f, 0.5f, 0.5f, 1));
+	assets.CreateSolidColorTexture("darkGrey", 2, 2, XMFLOAT4(0.25f, 0.25f, 0.25f, 1));
+	assets.CreateSolidColorTexture("flatNormalMap", 2, 2, XMFLOAT4(0.5f, 0.5f, 1.0f, 1.0f));
+
+	Material* solidShinyMetal = new Material(vs, psPBR, XMFLOAT4(1, 1, 1, 1), 0.0f, XMFLOAT2(1, 1));
+	solidShinyMetal->AddPSTextureSRV("AlbedoTexture", assets.GetTexture("white"));
+	solidShinyMetal->AddPSTextureSRV("NormalTexture", assets.GetTexture("flatNormalMap"));
+	solidShinyMetal->AddPSTextureSRV("RoughnessTexture", assets.GetTexture("black"));
+	solidShinyMetal->AddPSTextureSRV("MetalTexture", assets.GetTexture("white"));
+	solidShinyMetal->AddPSSampler("BasicSampler", samplerOptions);
+	solidShinyMetal->AddPSSampler("ClampSampler", clampSampler);
+	materials.push_back(solidShinyMetal);
+
+	Material* solidQuarterRoughMetal = new Material(vs, psPBR, XMFLOAT4(1, 1, 1, 1), 0.0f, XMFLOAT2(1, 1));
+	solidQuarterRoughMetal->AddPSTextureSRV("AlbedoTexture", assets.GetTexture("white"));
+	solidQuarterRoughMetal->AddPSTextureSRV("NormalTexture", assets.GetTexture("flatNormalMap"));
+	solidQuarterRoughMetal->AddPSTextureSRV("RoughnessTexture", assets.GetTexture("darkGrey"));
+	solidQuarterRoughMetal->AddPSTextureSRV("MetalTexture", assets.GetTexture("white"));
+	solidQuarterRoughMetal->AddPSSampler("BasicSampler", samplerOptions);
+	solidQuarterRoughMetal->AddPSSampler("ClampSampler", clampSampler);
+	materials.push_back(solidQuarterRoughMetal);
+
+	Material* solidHalfRoughMetal = new Material(vs, psPBR, XMFLOAT4(1, 1, 1, 1), 0.0f, XMFLOAT2(1, 1));
+	solidHalfRoughMetal->AddPSTextureSRV("AlbedoTexture", assets.GetTexture("white"));
+	solidHalfRoughMetal->AddPSTextureSRV("NormalTexture", assets.GetTexture("flatNormalMap"));
+	solidHalfRoughMetal->AddPSTextureSRV("RoughnessTexture", assets.GetTexture("grey"));
+	solidHalfRoughMetal->AddPSTextureSRV("MetalTexture", assets.GetTexture("white"));
+	solidHalfRoughMetal->AddPSSampler("BasicSampler", samplerOptions);
+	solidHalfRoughMetal->AddPSSampler("ClampSampler", clampSampler);
+	materials.push_back(solidHalfRoughMetal);
+
+	Material* solidShinyPlastic = new Material(vs, psPBR, XMFLOAT4(1, 1, 1, 1), 0.0f, XMFLOAT2(1, 1));
+	solidShinyPlastic->AddPSTextureSRV("AlbedoTexture", assets.GetTexture("white"));
+	solidShinyPlastic->AddPSTextureSRV("NormalTexture", assets.GetTexture("flatNormalMap"));
+	solidShinyPlastic->AddPSTextureSRV("RoughnessTexture", assets.GetTexture("black"));
+	solidShinyPlastic->AddPSTextureSRV("MetalTexture", assets.GetTexture("black"));
+	solidShinyPlastic->AddPSSampler("BasicSampler", samplerOptions);
+	solidShinyPlastic->AddPSSampler("ClampSampler", clampSampler);
+	materials.push_back(solidShinyPlastic);
+
+	Material* solidQuarterRoughPlastic = new Material(vs, psPBR, XMFLOAT4(1, 1, 1, 1), 0.0f, XMFLOAT2(1, 1));
+	solidQuarterRoughPlastic->AddPSTextureSRV("AlbedoTexture", assets.GetTexture("white"));
+	solidQuarterRoughPlastic->AddPSTextureSRV("NormalTexture", assets.GetTexture("flatNormalMap"));
+	solidQuarterRoughPlastic->AddPSTextureSRV("RoughnessTexture", assets.GetTexture("darkGrey"));
+	solidQuarterRoughPlastic->AddPSTextureSRV("MetalTexture", assets.GetTexture("black"));
+	solidQuarterRoughPlastic->AddPSSampler("BasicSampler", samplerOptions);
+	solidQuarterRoughPlastic->AddPSSampler("ClampSampler", clampSampler);
+	materials.push_back(solidQuarterRoughPlastic);
+
+	Material* solidHalfRoughPlastic = new Material(vs, psPBR, XMFLOAT4(1, 1, 1, 1), 0.0f, XMFLOAT2(1, 1));
+	solidHalfRoughPlastic->AddPSTextureSRV("AlbedoTexture", assets.GetTexture("white"));
+	solidHalfRoughPlastic->AddPSTextureSRV("NormalTexture", assets.GetTexture("flatNormalMap"));
+	solidHalfRoughPlastic->AddPSTextureSRV("RoughnessTexture", assets.GetTexture("grey"));
+	solidHalfRoughPlastic->AddPSTextureSRV("MetalTexture", assets.GetTexture("black"));
+	solidHalfRoughPlastic->AddPSSampler("BasicSampler", samplerOptions);
+	solidHalfRoughPlastic->AddPSSampler("ClampSampler", clampSampler);
+	materials.push_back(solidHalfRoughPlastic);
+
+
+
+	GameEntity* shinyMetal = new GameEntity(sphereMesh, solidShinyMetal);
+	shinyMetal->GetTransform()->SetPosition(-5, 0, 0);
+	entities.push_back(shinyMetal);
+
+	GameEntity* quarterRoughMetal = new GameEntity(sphereMesh, solidQuarterRoughMetal);
+	quarterRoughMetal->GetTransform()->SetPosition(-3.5f, 0, 0);
+	entities.push_back(quarterRoughMetal);
+
+	GameEntity* roughMetal = new GameEntity(sphereMesh, solidHalfRoughMetal);
+	roughMetal->GetTransform()->SetPosition(-2, 0, 0);
+	entities.push_back(roughMetal);
+
+	GameEntity* shinyPlastic = new GameEntity(sphereMesh, solidShinyPlastic);
+	shinyPlastic->GetTransform()->SetPosition(2, 0, 0);
+	entities.push_back(shinyPlastic);
+
+	GameEntity* quarterRoughPlastic = new GameEntity(sphereMesh, solidQuarterRoughPlastic);
+	quarterRoughPlastic->GetTransform()->SetPosition(3.5f, 0, 0);
+	entities.push_back(quarterRoughPlastic);
+
+	GameEntity* roughPlastic = new GameEntity(sphereMesh, solidHalfRoughPlastic);
+	roughPlastic->GetTransform()->SetPosition(5, 0, 0);
+	entities.push_back(roughPlastic);
+
+
+	// Transform test =====================================
+	entities[0]->GetTransform()->AddChild(entities[1]->GetTransform(), true);
 }
 
 

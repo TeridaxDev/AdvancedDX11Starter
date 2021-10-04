@@ -17,15 +17,17 @@ public:
 	void SetRotation(float p, float y, float r);
 	void SetScale(float x, float y, float z);
 
+	void SetTransformsFromMatrix(DirectX::XMFLOAT4X4 worldMatrix);
+
 	DirectX::XMFLOAT3 GetPosition();
 	DirectX::XMFLOAT3 GetPitchYawRoll();
 	DirectX::XMFLOAT3 GetScale();
 	DirectX::XMFLOAT4X4 GetWorldMatrix();
 	DirectX::XMFLOAT4X4 GetWorldInverseTransposeMatrix();
 
-	void AddChild(Transform* child);
-	void RemoveChild(Transform* child);
-	void SetParent(Transform* newParent);
+	void AddChild(Transform* child, bool makeChildRelative = true);
+	void RemoveChild(Transform* child, bool applyParentTransform = true);
+	void SetParent(Transform* newParent, bool makeChildRelative = true);
 	Transform* GetParent();
 	Transform* GetChild(unsigned int index);
 	int IndexOfChild(Transform* child);
@@ -49,6 +51,9 @@ private:
 	void UpdateMatrices();
 	
 	void MarkChildTransformsDirty();
+
+	// Helpers for conversion
+	DirectX::XMFLOAT3 QuaternionToEuler(DirectX::XMFLOAT4 quaternion);
 
 };
 

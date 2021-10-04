@@ -64,6 +64,18 @@ private:
 	Microsoft::WRL::ComPtr<ID3D11DepthStencilState> skyDepthState;
 	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> skySRV;
 
+	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> irradianceCM;
+	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> convolvedSpecularCM;
+	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> lookupTexture;
+	int mipLevels;
+	const int mipSkip = 3;
+	const int mipFaceSize = 512;
+	const int lookupSize = 512;
+
+	void IBLCreateIrradianceMap();
+	void IBLCreateConvolvedSpecularMap();
+	void IBLCreateBRDFLookUpTexture();
+
 	Microsoft::WRL::ComPtr<ID3D11SamplerState> samplerOptions;
 	Microsoft::WRL::ComPtr<ID3D11DeviceContext> context;
 	Microsoft::WRL::ComPtr<ID3D11Device> device;

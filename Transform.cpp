@@ -95,6 +95,26 @@ DirectX::XMFLOAT3 Transform::GetPitchYawRoll() { return pitchYawRoll; }
 
 DirectX::XMFLOAT3 Transform::GetScale() { return scale; }
 
+void Transform::SetTransformsFromMatrix(DirectX::XMFLOAT4X4 worldMatrix)
+{
+	// Decompose the matrix
+	XMVECTOR localPos;
+	XMVECTOR localRotQuat;
+	XMVECTOR localScale;
+	XMMatrixDecompose(&localScale, &localRotQuat, &localPos, XMLoadFloat4x4(&worldMatrix));
+
+	// Get the euler angles from the quaternion and store as our 
+	XMFLOAT4 quat;
+	XMStoreFloat4(&quat, localRotQuat);
+	pitchYawRoll = QuaternionToEuler(quat);
+
+	// Overwrite the child's other transform data
+	XMStoreFloat3(&position, localPos);
+	XMStoreFloat3(&scale, localScale);
+
+	// Things have changed
+	matricesDirty = true;
+}
 
 DirectX::XMFLOAT4X4 Transform::GetWorldMatrix()
 {
@@ -108,38 +128,93 @@ DirectX::XMFLOAT4X4 Transform::GetWorldInverseTransposeMatrix()
 	return worldMatrix;
 }
 
-void Transform::AddChild(Transform* child)
+void Transform::AddChild(Transform* child, bool makeChildRelative)
 {
-	if (child == NULL) return;
-	for (size_t i = 0; i < children.size(); i++)
+	// Verify valid pointer
+	if (!child) return;
+
+	// Already a child?
+	if (IndexOfChild(child) >= 0)
+		return;
+
+	// Do we need to adjust the child's transform
+	// so that it stays in place?
+	if (makeChildRelative)
 	{
-		if (children[i] == child) return;
+		// Get matrices
+		XMFLOAT4X4 parentWorld = GetWorldMatrix();
+		XMMATRIX pWorld = XMLoadFloat4x4(&parentWorld);
+
+		XMFLOAT4X4 childWorld = child->GetWorldMatrix();
+		XMMATRIX cWorld = XMLoadFloat4x4(&childWorld);
+
+		// Invert the parent
+		XMMATRIX pWorldInv = XMMatrixInverse(0, pWorld);
+
+		// Multiply the child by the inverse parent
+		XMMATRIX relCWorld = cWorld * pWorldInv;
+
+		// Set the child's transform from this new matrix
+		XMFLOAT4X4 relativeChildWorld;
+		XMStoreFloat4x4(&relativeChildWorld, relCWorld);
+		child->SetTransformsFromMatrix(relativeChildWorld);
 	}
-	
+
+	// Reciprocal set!
 	children.push_back(child);
 	child->parent = this;
+
+	// This child transform is now out of date
 	child->matricesDirty = true;
 	child->MarkChildTransformsDirty();
-
 }
 
-void Transform::RemoveChild(Transform* child)
+void Transform::RemoveChild(Transform* child, bool applyParentTransform)
 {
-	unsigned int index = IndexOfChild(child);
-	if (index == -1) return;
-	children.erase(children.begin()+index);
-	child->SetParent(NULL);
-}
+	// Verify valid pointer
+	if (!child) return;
 
-void Transform::SetParent(Transform* newParent)
-{
-	parent = newParent;
-	if (parent != NULL)
+	// Find the child
+	auto it = std::find(children.begin(), children.end(), child);
+	if (it == children.end())
+		return;
+
+	// Before actually un-parenting, are we applying the parent's transform?
+	if (applyParentTransform)
 	{
-		newParent->children.push_back(this);
+		// Grab the child's transform and matrix
+		Transform* child = *it;
+		XMFLOAT4X4 childWorld = child->GetWorldMatrix();
+
+		// Set the child's transform data using its final matrix
+		child->SetTransformsFromMatrix(childWorld);
 	}
-	matricesDirty = true;
-	MarkChildTransformsDirty();
+
+	// Reciprocal removal
+	children.erase(it);
+	child->parent = 0;
+
+	// This child transform is now out of date
+	child->matricesDirty = true;
+	child->MarkChildTransformsDirty();
+}
+
+void Transform::SetParent(Transform* newParent, bool makeChildRelative)
+{
+	// Unparent if necessary
+	if (this->parent)
+	{
+		// Remove this object from the parent's list
+		// (which will also update our own parent reference!)
+		this->parent->RemoveChild(this);
+	}
+
+	// Is the new parent something other than null?
+	if (newParent)
+	{
+		// Add this object as a child
+		newParent->AddChild(this, makeChildRelative);
+	}
 }
 
 Transform* Transform::GetParent()
@@ -203,4 +278,33 @@ void Transform::MarkChildTransformsDirty()
 		children[i]->matricesDirty = true;
 		children[i]->MarkChildTransformsDirty();
 	}
+}
+
+DirectX::XMFLOAT3 Transform::QuaternionToEuler(DirectX::XMFLOAT4 quaternion)
+{
+	// Convert quaternion to euler angles
+	// Note: This is usually rough at best
+	// 
+	// Step 1: Quaternion to rotation matrix
+	XMMATRIX rMat = XMMatrixRotationQuaternion(XMLoadFloat4(&quaternion));
+
+	// Step 2: Extract each piece
+	// From: https://stackoverflow.com/questions/60350349/directx-get-pitch-yaw-roll-from-xmmatrix
+	XMFLOAT4X4 rotationMatrix;
+	//XMStoreFloat4x4(&rotationMatrix, XMMatrixTranspose(rMat)); // Linked version used a transpose which seems unnecessary?
+	//float pitch = (float)asin(-rotationMatrix._23);
+	//float yaw = (float)atan2(rotationMatrix._13, rotationMatrix._33);
+	//float roll = (float)atan2(rotationMatrix._21, rotationMatrix._22);
+
+	// Version without transpose
+	XMStoreFloat4x4(&rotationMatrix, rMat);
+	float pitch = (float)asin(-rotationMatrix._32);
+	float yaw = (float)atan2(rotationMatrix._31, rotationMatrix._33);
+	float roll = (float)atan2(rotationMatrix._12, rotationMatrix._22);
+
+	// Recreate quaternion to test
+	//XMVECTOR testQuat = XMQuaternionRotationRollPitchYaw(pitch, yaw, roll);
+
+	// Return the euler values as a vector
+	return XMFLOAT3(pitch, yaw, roll);
 }

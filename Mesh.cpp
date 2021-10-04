@@ -3,14 +3,37 @@
 #include <vector>
 #include <fstream>
 
+#include <assimp/Importer.hpp>
+#include <assimp/scene.h>
+#include <assimp/postprocess.h>
+
 using namespace DirectX;
 
 Mesh::Mesh(Vertex* vertArray, int numVerts, unsigned int* indexArray, int numIndices, Microsoft::WRL::ComPtr<ID3D11Device> device)
 {
-	CreateBuffers(vertArray, numVerts, indexArray, numIndices, device);
+	CreateBuffers(vertArray, numVerts, indexArray, numIndices, device, true);
 }
 
-Mesh::Mesh(const char* objFile, Microsoft::WRL::ComPtr<ID3D11Device> device)
+Mesh::Mesh(const char* objFile, Microsoft::WRL::ComPtr<ID3D11Device> device, bool useAssImp)
+{
+	if (useAssImp)
+	{
+		LoadAssImp(objFile, device);
+	}
+	else
+	{
+		LoadManually(objFile, device);
+	}
+}
+
+
+Mesh::~Mesh(void)
+{
+
+}
+
+
+void Mesh::LoadManually(const char* objFile, Microsoft::WRL::ComPtr<ID3D11Device> device)
 {
 	// File input object
 	std::ifstream obj(objFile);
@@ -184,23 +207,85 @@ Mesh::Mesh(const char* objFile, Microsoft::WRL::ComPtr<ID3D11Device> device)
 	//    an index buffer in this case?  Sure!  Though, if your mesh class assumes you have
 	//    one, you'll need to write some extra code to handle cases when you don't.
 
-	CreateBuffers(&verts[0], vertCounter, &indices[0], vertCounter, device);
-
-
-}
-
-
-Mesh::~Mesh(void)
-{
+	CreateBuffers(&verts[0], vertCounter, &indices[0], vertCounter, device, true);
 
 }
 
-
-void Mesh::CreateBuffers(Vertex* vertArray, int numVerts, unsigned int* indexArray, int numIndices, Microsoft::WRL::ComPtr<ID3D11Device> device)
+void Mesh::LoadAssImp(const char* objFile, Microsoft::WRL::ComPtr<ID3D11Device> device)
 {
-	// Always calculate the tangents before copying to buffer
-	CalculateTangents(vertArray, numVerts, indexArray, numIndices);
+	// Create the importer
+	Assimp::Importer importer;
 
+	// Create the file and process it as necessary
+	const aiScene* scene = importer.ReadFile(objFile,
+		aiProcess_CalcTangentSpace |
+		aiProcess_Triangulate |
+		aiProcess_JoinIdenticalVertices |
+		aiProcess_SortByPType |
+		aiProcess_ConvertToLeftHanded);
+
+	// Did it work?
+	if (!scene)
+	{
+		// Error!  Print something
+		printf("Error loading model!\n");
+	}
+
+	// Grab the first mesh and build our vertices
+	aiMesh* mesh = scene->mMeshes[0];
+	std::vector<Vertex> vertices;
+
+	// Loop through the verts in assimp and build our vertex structs one by one
+	for (unsigned int i = 0; i < mesh->mNumVertices; i++)
+	{
+		Vertex v = {};
+		v.Position.x = mesh->mVertices[i].x;
+		v.Position.y = mesh->mVertices[i].y;
+		v.Position.z = mesh->mVertices[i].z;
+
+		if (mesh->HasNormals())
+		{
+			v.Normal.x = mesh->mNormals[i].x;
+			v.Normal.y = mesh->mNormals[i].y;
+			v.Normal.z = mesh->mNormals[i].z;
+		}
+
+		if (mesh->HasTextureCoords(0))
+		{
+			v.UV.x = mesh->mTextureCoords[0][i].x;
+			v.UV.y = mesh->mTextureCoords[0][i].y;
+		}
+
+		if (mesh->HasTangentsAndBitangents())
+		{
+			v.Tangent.x = mesh->mTangents[i].x;
+			v.Tangent.y = mesh->mTangents[i].y;
+			v.Tangent.z = mesh->mTangents[i].z;
+		}
+
+		vertices.push_back(v);
+	}
+
+	std::vector<unsigned int> indices;
+	for (unsigned int f = 0; f < mesh->mNumFaces; f++)
+	{
+		for (unsigned int i = 0; i < mesh->mFaces[f].mNumIndices; i++)
+		{
+			unsigned int index = mesh->mFaces[f].mIndices[i];
+			indices.push_back(index);
+		}
+	}
+
+	// Create the final buffers
+	CreateBuffers(&vertices[0], (int)vertices.size(), &indices[0], (int)indices.size(), device, false);
+
+}
+
+void Mesh::CreateBuffers(Vertex* vertArray, int numVerts, unsigned int* indexArray, int numIndices, Microsoft::WRL::ComPtr<ID3D11Device> device, bool calcTangents)
+{
+	// Calculate the tangents before copying to buffer?
+	if (calcTangents)
+		CalculateTangents(vertArray, numVerts, indexArray, numIndices);
 
 	// Create the vertex buffer
 	D3D11_BUFFER_DESC vbd;
@@ -272,22 +357,22 @@ void Mesh::CalculateTangents(Vertex* verts, int numVerts, unsigned int* indices,
 
 		// Create vectors for tangent calculation
 		float r = 1.0f / (s1 * t2 - s2 * t1);
-		
+
 		float tx = (t2 * x1 - t1 * x2) * r;
 		float ty = (t2 * y1 - t1 * y2) * r;
 		float tz = (t2 * z1 - t1 * z2) * r;
 
 		// Adjust tangents of each vert of the triangle
-		v1->Tangent.x += tx; 
-		v1->Tangent.y += ty; 
+		v1->Tangent.x += tx;
+		v1->Tangent.y += ty;
 		v1->Tangent.z += tz;
 
-		v2->Tangent.x += tx; 
-		v2->Tangent.y += ty; 
+		v2->Tangent.x += tx;
+		v2->Tangent.y += ty;
 		v2->Tangent.z += tz;
 
-		v3->Tangent.x += tx; 
-		v3->Tangent.y += ty; 
+		v3->Tangent.x += tx;
+		v3->Tangent.y += ty;
 		v3->Tangent.z += tz;
 	}
 
@@ -301,7 +386,7 @@ void Mesh::CalculateTangents(Vertex* verts, int numVerts, unsigned int* indices,
 		// Use Gram-Schmidt orthogonalize
 		tangent = XMVector3Normalize(
 			tangent - normal * XMVector3Dot(normal, tangent));
-		
+
 		// Store the tangent
 		XMStoreFloat3(&verts[i].Tangent, tangent);
 	}

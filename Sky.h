@@ -75,8 +75,8 @@ private:
 	const int lookupSize = 512;
 
 	void IBLCreateIrradianceMap();
-	//void IBLCreateConvolvedSpecularMap();
-	//void IBLCreateBRDFLookUpTexture();
+	void IBLCreateConvolvedSpecularMap();
+	void IBLCreateBRDFLookUpTexture();
 
 	Microsoft::WRL::ComPtr<ID3D11SamplerState> samplerOptions;
 	Microsoft::WRL::ComPtr<ID3D11DeviceContext> context;

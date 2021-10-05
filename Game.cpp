@@ -117,7 +117,7 @@ void Game::Init()
 
 	// Make our camera
 	camera = new Camera(
-		0, 0, 0,	// Position
+		0, 0, -5,	// Position
 		3.0f,		// Move speed
 		1.0f,		// Mouse look
 		this->width / (float)this->height); // Aspect ratio
@@ -170,12 +170,12 @@ void Game::LoadAssetsAndCreateEntities()
 	// Create the sky
 	sky = new Sky(
 		/*assets.GetTexture("Skies\\SunnyCubeMap.dds"),*/
-		assets.GetTexture("Skies\\Planet\\right.png"),
-		assets.GetTexture("Skies\\Planet\\left.png"),
-		assets.GetTexture("Skies\\Planet\\up.png"),
-		assets.GetTexture("Skies\\Planet\\down.png"),
-		assets.GetTexture("Skies\\Planet\\front.png"),
-		assets.GetTexture("Skies\\Planet\\back.png"),
+		assets.GetTexture("Skies\\Clouds Blue\\right.png"),
+		assets.GetTexture("Skies\\Clouds Blue\\left.png"),
+		assets.GetTexture("Skies\\Clouds Blue\\up.png"),
+		assets.GetTexture("Skies\\Clouds Blue\\down.png"),
+		assets.GetTexture("Skies\\Clouds Blue\\front.png"),
+		assets.GetTexture("Skies\\Clouds Blue\\back.png"),
 		samplerOptions,
 		device,
 		context);

@@ -43,7 +43,12 @@ void Renderer::Render(Camera* camera, int lightCount, SimpleVertexShader* lightV
 		ps->SetData("Lights", (void*)(&lights[0]), sizeof(Light) * lightCount);
 		ps->SetInt("LightCount", lightCount);
 		ps->SetFloat3("CameraPosition", camera->GetTransform()->GetPosition());
+		ps->SetInt("SpecIBLTotalMipLevels", sky->IBLGetMipLevels());
 		ps->CopyBufferData("perFrame");
+
+		ps->SetShaderResourceView("IrradianceIBLMap", sky->IBLGetIrradianceMap());
+		ps->SetShaderResourceView("SpecularIBLMap", sky->IBLGetConvolvedSpecularMap());
+		ps->SetShaderResourceView("BrdfLookUpMap", sky->IBLGetBRDFLookupTexture());
 
 		// Draw the entity
 		ge->Draw(context, camera);

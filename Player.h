@@ -7,8 +7,8 @@ class Player : public GameEntity
 private:
 
 	float moveSpeed = 15.0f;
-	float gravity = -.98f;
-	float jumpForce = 14;
+	float gravity = -19.6f;
+	float jumpForce = 8;
 	float mouseLookSpeed = 1.0f;
 
 	float velocityX;

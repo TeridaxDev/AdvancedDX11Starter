@@ -44,7 +44,7 @@ void Player::Update(float dt)
 
 	if (y > floorHeight)
 	{
-		velocityY += gravity;
+		velocityY += gravity * dt;
 	}
 	else if (y <= floorHeight)
 	{

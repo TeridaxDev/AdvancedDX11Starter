@@ -19,7 +19,7 @@ public:
 
 	void Draw(Microsoft::WRL::ComPtr<ID3D11DeviceContext> context, Camera* camera);
 
-private:
+protected:
 
 	Mesh* mesh;
 	Material* material;

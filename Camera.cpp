@@ -23,7 +23,7 @@ Camera::~Camera()
 void Camera::Update(float dt)
 {
 	// Current speed
-	float speed = dt * movementSpeed;
+	/*float speed = dt * movementSpeed;
 
 	// Get the input manager instance
 	Input& input = Input::GetInstance();
@@ -47,7 +47,7 @@ void Camera::Update(float dt)
 		float xDiff = dt * mouseLookSpeed * input.GetMouseXDelta();
 		float yDiff = dt * mouseLookSpeed * input.GetMouseYDelta();
 		transform.Rotate(yDiff, xDiff, 0);
-	}
+	}*/
 
 	// Update the view every frame - could be optimized
 	UpdateViewMatrix();

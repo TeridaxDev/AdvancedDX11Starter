@@ -77,7 +77,7 @@ Game::~Game()
 	// Delete any one-off objects
 	delete sky;
 	delete camera;
-	delete localPlayer;
+	delete localPlayer; //COMMENT OUT IF RENDERING PLAYER'S BODY
 	delete arial;
 	delete spriteBatch;
 
@@ -117,14 +117,15 @@ void Game::Init()
 
 	// Make our camera
 	camera = new Camera(
-		0, 0, -5,	// Position
+		0, 10, -5,	// Position
 		3.0f,		// Move speed
 		1.0f,		// Mouse look
 		this->width / (float)this->height); // Aspect ratio
 
-	//localPlayer = new Player(Assets::GetInstance().GetMesh("Models\\sphere.obj"), materials[0], camera);
-	//camera->GetTransform()->SetParent(localPlayer->GetTransform());
-	//localPlayer->GetTransform()->SetPosition(0, 0, -10);
+	localPlayer = new Player(Assets::GetInstance().GetMesh("Models\\sphere.obj"), materials[0], camera);
+	localPlayer->GetTransform()->SetPosition(0, -1, 0);
+	localPlayer->GetTransform()->SetParent(camera->GetTransform(), false);
+	//entities.push_back(localPlayer); //UNCOMMENT TO RENDER THE PLAYER'S BODY. DONT FORGET TO COMMENT OUT "delete localPlayer"
 
 	IMGUI_CHECKVERSION();
 	ImGui::CreateContext();
@@ -309,6 +310,7 @@ void Game::LoadAssetsAndCreateEntities()
 
 	// === Create the PBR entities =====================================
 	Mesh* sphereMesh = assets.GetMesh("Models\\sphere.obj");
+	Mesh* cubeMesh = assets.GetMesh("Models\\cube.obj");
 
 	GameEntity* cobSpherePBR = new GameEntity(sphereMesh, cobbleMat2xPBR);
 	cobSpherePBR->GetTransform()->SetScale(2, 2, 2);
@@ -338,6 +340,10 @@ void Game::LoadAssetsAndCreateEntities()
 	woodSpherePBR->GetTransform()->SetScale(2, 2, 2);
 	woodSpherePBR->GetTransform()->SetPosition(6, 2, 0);
 
+	GameEntity* floor = new GameEntity(cubeMesh, woodMatPBR);
+	floor->GetTransform()->SetScale(100, 0.1f, 100);
+	floor->GetTransform()->SetPosition(0, -10, 0);
+
 	entities.push_back(cobSpherePBR);
 	entities.push_back(floorSpherePBR);
 	entities.push_back(paintSpherePBR);
@@ -345,6 +351,7 @@ void Game::LoadAssetsAndCreateEntities()
 	entities.push_back(bronzeSpherePBR);
 	entities.push_back(roughSpherePBR);
 	entities.push_back(woodSpherePBR);
+	entities.push_back(floor);
 
 	// Create the non-PBR entities ==============================
 	GameEntity* cobSphere = new GameEntity(sphereMesh, cobbleMat2x);
@@ -599,6 +606,18 @@ void Game::Update(float deltaTime, float totalTime)
 	ImGui::Text("Entity Count");
 	ImGui::SameLine();
 	ImGui::Text(std::to_string(entities.size()).c_str());
+	ImGui::Text("Player Position");
+	ImGui::Text("X: ");
+	ImGui::SameLine();
+	ImGui::Text(std::to_string(camera->GetTransform()->GetPosition().x).c_str());
+	ImGui::SameLine();
+	ImGui::Text(" Y: ");
+	ImGui::SameLine();
+	ImGui::Text(std::to_string(camera->GetTransform()->GetPosition().y).c_str());
+	ImGui::SameLine();
+	ImGui::Text(" Z: ");
+	ImGui::SameLine();
+	ImGui::Text(std::to_string(camera->GetTransform()->GetPosition().z).c_str());
 
 
 	ImGui::End();
@@ -641,6 +660,7 @@ void Game::Update(float deltaTime, float totalTime)
 
 	// Update the camera
 	camera->Update(deltaTime);
+	localPlayer->Update(deltaTime);
 
 	// Check individual input
 	Input& input = Input::GetInstance();

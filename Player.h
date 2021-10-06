@@ -6,12 +6,20 @@ class Player : public GameEntity
 {
 private:
 
-	float moveSpeed = 3.0f;
-	float gravity = -9.8f;
-	float jumpForce = 50;
+	float moveSpeed = 15.0f;
+	float gravity = -.98f;
+	float jumpForce = 14;
+	float mouseLookSpeed = 1.0f;
 
+	float velocityX;
+	float velocityY;
+	float velocityZ;
 
 	Camera* camera;
+
+
+	//TEMPORARY
+	float floorHeight = -8;
 
 public:
 

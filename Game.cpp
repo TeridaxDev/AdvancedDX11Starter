@@ -342,7 +342,7 @@ void Game::LoadAssetsAndCreateEntities()
 
 	GameEntity* floor = new GameEntity(cubeMesh, woodMatPBR);
 	floor->GetTransform()->SetScale(100, 0.1f, 100);
-	floor->GetTransform()->SetPosition(0, -10, 0);
+	floor->GetTransform()->SetPosition(0, -5, 0);
 
 	entities.push_back(cobSpherePBR);
 	entities.push_back(floorSpherePBR);

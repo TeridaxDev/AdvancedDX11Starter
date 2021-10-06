@@ -19,7 +19,7 @@ private:
 
 
 	//TEMPORARY
-	float floorHeight = -8;
+	float floorHeight = -3;
 
 public:
 

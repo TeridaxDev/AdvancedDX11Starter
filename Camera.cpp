@@ -78,7 +78,7 @@ void Camera::UpdateProjectionMatrix(float aspectRatio)
 		0.25f * XM_PI,		// Field of View Angle
 		aspectRatio,		// Aspect ratio
 		0.01f,				// Near clip plane distance
-		100.0f);			// Far clip plane distance
+		300.0f);			// Far clip plane distance
 	XMStoreFloat4x4(&projMatrix, P);
 }
 

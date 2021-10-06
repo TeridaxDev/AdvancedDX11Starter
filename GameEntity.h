@@ -6,7 +6,6 @@
 #include "Material.h"
 #include "Transform.h"
 #include "Camera.h"
-#include "SimpleShader.h"
 
 class GameEntity
 {

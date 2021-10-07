@@ -606,7 +606,7 @@ void Game::Update(float deltaTime, float totalTime)
 	ImGui::Text("Entity Count");
 	ImGui::SameLine();
 	ImGui::Text(std::to_string(entities.size()).c_str());
-	ImGui::Text("Player Position");
+	ImGui::Text("\nPlayer Position");
 	ImGui::Text("X: ");
 	ImGui::SameLine();
 	ImGui::Text(std::to_string(camera->GetTransform()->GetPosition().x).c_str());
@@ -658,12 +658,40 @@ void Game::Update(float deltaTime, float totalTime)
 	}
 	ImGui::End();
 
+	Input& input = Input::GetInstance();
+
 	// Update the camera
 	camera->Update(deltaTime);
 	localPlayer->Update(deltaTime);
 
+	if (input.MouseLeftPress())
+	{
+		Projectile* bullet = new Projectile(Assets::GetInstance().GetMesh("Models\\sphere.obj"), materials[0], 5);
+		projectiles.push_back(bullet);
+		entities.push_back(bullet);
+		Transform* tf = bullet->GetTransform();
+		tf->SetScale(0.2f, 0.2f, 0.2f);
+		Transform* camtf = localPlayer->GetCamera()->GetTransform();
+		tf->SetPosition(camtf->GetPosition().x + localPlayer->velocityX * deltaTime, camtf->GetPosition().y + localPlayer->velocityY * deltaTime, camtf->GetPosition().z + localPlayer->velocityZ * deltaTime);
+		tf->SetRotation(camtf->GetPitchYawRoll().x, camtf->GetPitchYawRoll().y, camtf->GetPitchYawRoll().z);
+		bullet->SetVelocity(0, 5, 20, -9.8f);
+	}
+
+	for (int i = 0; i < projectiles.size(); i++)
+	{
+		Projectile* p = projectiles[i];
+		p->Update(deltaTime);
+		if (p->dead)
+		{
+			auto it = find(entities.begin(), entities.end(), p);
+			auto it2 = find(projectiles.begin(), projectiles.end(), p);
+			entities.erase(it);
+			projectiles.erase(it2);
+			delete p;
+		}
+	}
+
 	// Check individual input
-	Input& input = Input::GetInstance();
 	if (input.KeyDown(VK_ESCAPE)) Quit();
 	if (input.KeyPress(VK_TAB)) GenerateLights();
 

@@ -12,6 +12,7 @@
 #include "Input.h"
 #include "Player.h"
 #include "Renderer.h"
+#include "Projectile.h"
 
 #include <DirectXMath.h>
 #include <wrl/client.h> // Used for ComPtr - a smart pointer for COM objects
@@ -42,6 +43,7 @@ private:
 	std::vector<Material*> materials;
 	std::vector<GameEntity*>* currentScene;
 	std::vector<GameEntity*> entities;
+	std::vector<Projectile*> projectiles;
 	Camera* camera;
 	Player* localPlayer;
 

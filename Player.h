@@ -11,10 +11,6 @@ private:
 	float jumpForce = 8;
 	float mouseLookSpeed = 1.0f;
 
-	float velocityX;
-	float velocityY;
-	float velocityZ;
-
 	Camera* camera;
 
 
@@ -28,6 +24,10 @@ public:
 	Camera* GetCamera() { return camera; }
 
 	void Update(float dt);
+
+	float velocityX;
+	float velocityY;
+	float velocityZ;
 
 };
 

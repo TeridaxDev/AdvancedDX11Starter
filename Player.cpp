@@ -32,7 +32,7 @@ void Player::Update(float dt)
 	//if (input.KeyDown('X')) { camera->GetTransform()->MoveAbsolute(0, -speed, 0); }
 
 	// Handle mouse movement only when button is down
-	if (input.MouseLeftDown())
+	if (!input.MouseRightDown())
 	{
 		// Calculate cursor change
 		float xDiff = dt * mouseLookSpeed * input.GetMouseXDelta();

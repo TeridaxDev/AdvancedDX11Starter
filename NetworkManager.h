@@ -26,8 +26,8 @@ private:
 	WSASession session;
 	UDPSocket socket;
 
-	char sendBuffer[100];
-	char recvBuffer[100];
+	char sendBuffer[500];
+	char recvBuffer[500];
 	bool newData;
 	bool running;
 

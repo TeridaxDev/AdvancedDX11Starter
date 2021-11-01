@@ -1,4 +1,5 @@
 #include "NetworkManager.h"
+#include <bitset>
 
 void NetworkManager::ReceiveFrom()
 {
@@ -8,7 +9,7 @@ void NetworkManager::ReceiveFrom()
 		{
 			try 
 			{
-				socket.RecvFrom(recvBuffer, 100);
+				socket.RecvFrom(recvBuffer, 500);
 			}
 			catch (std::exception& ex)
 			{
@@ -36,7 +37,15 @@ NetworkResult NetworkManager::Connect(std::string ip, int port)
 	state = NetworkState::Connecting;
 	socket.Bind(0);
 
-	socket.SendTo(IP, PORT, "alekgn", 6);
+	//Clear buffers
+	std::fill_n(sendBuffer, 500, 0);
+	std::fill_n(recvBuffer, 500, 0);
+
+	unsigned int msgType = 1;
+
+	std::memcpy(&sendBuffer, &msgType, 4);
+
+	socket.SendTo(IP, PORT, sendBuffer, 500);
 
 	running = true;
 	recvFromThread = std::thread(&NetworkManager::ReceiveFrom, this);
@@ -65,11 +74,32 @@ void NetworkManager::Update(float dt)
 
 	if (newData)
 	{
-		std::cout << recvBuffer << std::endl;
+		//std::cout << recvBuffer << std::endl;
+
+		//Handle received data
+		unsigned int* msgType = (unsigned int*)&recvBuffer;
+
+		if (*msgType == 1) //Connected request accepted
+		{
+			if (state == NetworkState::Connecting) state = NetworkState::Connected;
+
+			unsigned int* msgData = (unsigned int*)&recvBuffer[4];
+
+			for (size_t i = 0; i < 8; i++)
+			{
+				std::bitset<8> x(recvBuffer[i]);
+				std::cout << x << " ";
+			}
+
+			std::cout << "\nJoined as player " << *msgData << std::endl;
+
+		}
+
+
+
+		//Clear buffer
+		std::fill_n(recvBuffer, 500, 0);
 		newData = false;
-
-		if (state == NetworkState::Connecting) state = NetworkState::Connected;
-
 	}
 
 }

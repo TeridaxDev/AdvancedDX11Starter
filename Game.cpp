@@ -658,6 +658,12 @@ void Game::Update(float deltaTime, float totalTime)
 	}
 	ImGui::End();
 
+	ImGui::Begin("Network Manager");
+
+	ImGui::Button("Connect");
+
+	ImGui::End();
+
 	Input& input = Input::GetInstance();
 
 	// Update the camera

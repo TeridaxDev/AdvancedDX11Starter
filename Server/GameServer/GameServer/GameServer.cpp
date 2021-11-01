@@ -59,13 +59,13 @@ void RecvFromLoop()
                     unsigned int data = 1;
                     std::memcpy(&sendbuffer, &data, 4);
                     data = newPlayer.GetID();
-                    std::memcpy(&sendbuffer + 4, &data, 4);
+                    std::memcpy(&sendbuffer[4], &data, 4);
 
-                    for (size_t i = 0; i < 8; i++)
+                    /*for (size_t i = 0; i < 8; i++)
                     {
                         std::bitset<8> x(sendbuffer[i]);
                         std::cout << x << " ";
-                    }
+                    }*/
 
                     Socket.SendTo(sender, sendbuffer, 500);
 

@@ -74,7 +74,6 @@ void NetworkManager::Update(float dt)
 
 	if (newData)
 	{
-		//std::cout << recvBuffer << std::endl;
 
 		//Handle received data
 		unsigned int* msgType = (unsigned int*)&recvBuffer;
@@ -83,18 +82,9 @@ void NetworkManager::Update(float dt)
 		{
 			if (state == NetworkState::Connecting) state = NetworkState::Connected;
 
-			unsigned int* msgData = (unsigned int*)&recvBuffer[4];
-
-			for (size_t i = 0; i < 8; i++)
-			{
-				std::bitset<8> x(recvBuffer[i]);
-				std::cout << x << " ";
-			}
-
-			std::cout << "\nJoined as player " << *msgData << std::endl;
+			std::cout << "\nJoined as player " << *(msgType + 1) << std::endl;
 
 		}
-
 
 
 		//Clear buffer

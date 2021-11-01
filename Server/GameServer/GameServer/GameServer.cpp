@@ -22,13 +22,23 @@ int main()
 
         while (1)
         {
-            Socket.RecvFrom(&buffer[0], 100);
-            std::cout << buffer << std::endl;
+            try
+            {
+                sockaddr_in sender = Socket.RecvFrom(&buffer[0], 100);
+                std::cout << buffer << std::endl;
+                std::cout << sender.sin_addr.S_un.S_un_w.s_w1 << "." << sender.sin_addr.S_un.S_un_w.s_w2;
+                std::cout << " " << sender.sin_port << std::endl;
+                Socket.SendTo(sender, "awrfawfr", 8);
+            }
+            catch (std::exception& ex)
+            {
+                std::cout << ex.what() << std::endl;
+            }
         }
     }
     catch (std::exception& ex)
     {
-        std::cout << ex.what();
+        std::cout << ex.what() << std::endl;
     }
 }
 

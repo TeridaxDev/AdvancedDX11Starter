@@ -13,6 +13,7 @@
 #include "Player.h"
 #include "Renderer.h"
 #include "Projectile.h"
+#include "NetworkManager.h"
 
 #include <DirectXMath.h>
 #include <wrl/client.h> // Used for ComPtr - a smart pointer for COM objects
@@ -79,6 +80,13 @@ private:
 	void LoadAssetsAndCreateEntities();
 
 	Input& input = Input::GetInstance();
+
+	//Networking
+	NetworkManager* netManager;
+
+	//Text Fields for ImGui
+	char ip[15] = "127.0.0.1";
+	char port[6] = "8888";
 
 };
 

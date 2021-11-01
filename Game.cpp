@@ -91,6 +91,7 @@ Game::~Game()
 	ImGui::DestroyContext();
 
 	delete renderer;
+	delete netManager;
 
 }
 
@@ -136,6 +137,7 @@ void Game::Init()
 	ImGui_ImplDX11_Init(device.Get(), context.Get());
 
 	renderer = new Renderer(device, context, swapChain, backBufferRTV, depthStencilView, width, height, sky, entities, lights);
+	netManager = new NetworkManager();
 
 }
 
@@ -660,8 +662,31 @@ void Game::Update(float deltaTime, float totalTime)
 
 	ImGui::Begin("Network Manager");
 
-	ImGui::Button("Connect");
+	NetworkState s = netManager->GetNetworkState();
+	if (s == NetworkState::Offline)
+	{
+		ImGui::InputText("##text1", ip, 15);
+		ImGui::InputText("##text2", port, 6);
 
+		if (ImGui::Button("Connect"))
+		{
+			char* pEnd;
+			netManager->Connect(ip, strtol(port, &pEnd, 0));
+		}
+	}
+	else if (s == NetworkState::Connecting)
+	{
+		ImGui::Text("Connecting...");
+	}
+	else if (s == NetworkState::Connected)
+	{
+		ImGui::Text("Connected!");
+
+		if (ImGui::Button("Disconnect"))
+		{
+			netManager->Disconnect();
+		}
+	}
 	ImGui::End();
 
 	Input& input = Input::GetInstance();
@@ -696,6 +721,8 @@ void Game::Update(float deltaTime, float totalTime)
 			delete p;
 		}
 	}
+
+	netManager->Update(deltaTime);
 
 	// Check individual input
 	if (input.KeyDown(VK_ESCAPE)) Quit();

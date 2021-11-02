@@ -23,8 +23,8 @@ public:
 	{
 		float* bff = (float*)buffer;
 		player->positionX = *bff;
-		player->positionY = *bff+1;
-		player->positionZ = *bff+2;
+		player->positionY = *(bff+1);
+		player->positionZ = *(bff+2);
 	}
 
 };

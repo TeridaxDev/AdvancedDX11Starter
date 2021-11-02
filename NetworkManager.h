@@ -28,7 +28,7 @@ private:
 	WSASession session;
 	UDPSocket socket;
 
-	int playerID;
+	unsigned int playerID;
 	char sendBuffer[500];
 	char recvBuffer[500];
 	bool newData;

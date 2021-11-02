@@ -49,6 +49,18 @@ void RecvFromLoop()
                 //Connection Request
                 if (*msgType == 1)
                 {
+                    //Tell every other played someone joined
+                    for (size_t i = 0; i < players.size(); i++)
+                    {
+                        //Send a response
+                        std::fill_n(sendbuffer, 500, 0);
+
+                        unsigned int data = 2;
+                        std::memcpy(&sendbuffer, &data, 4);
+                        Socket.SendTo(players[i]->client, sendbuffer, 500);
+                    }
+
+
                     //Respond with 1 to accept, followed by a player ID
 
                     int newID = players.size();
@@ -93,7 +105,41 @@ void RecvFromLoop()
                 }
                 else if(*msgType == 10) //Player update
                 { 
-                    
+                    unsigned int playerID = *(msgType + 1);
+                    //Find that player
+                    Player* p = nullptr;
+                    for (size_t i = 0; i < players.size(); i++)
+                    {
+                        if (players[i]->ID == playerID)
+                        {
+                            p = players[i];
+                            break;
+                        }
+                    }
+                    if (p == nullptr)
+                    {
+                        //Clear buffer
+                        std::fill_n(buffer, 500, 0);
+                        newData = false;
+                        continue;
+                    }
+
+                    //Read player initial position and velocity
+                    float posX, posY, posZ, velX, velY, velZ;
+                    float* posData = (float*)&buffer;
+                    posX = *(posData + 2);
+                    posY = *(posData + 3);
+                    posZ = *(posData + 4);
+                    velX = *(posData + 5);
+                    velY = *(posData + 6);
+                    velZ = *(posData + 7);
+
+                    p->SetPosition(posX, posY, posZ);
+                    p->SetVelocity(velX, velY, velZ);
+
+                    //Clear buffer
+                    std::fill_n(buffer, 500, 0);
+                    newData = false;
                 }
                 //Socket.SendTo(sender, "awrfawfr", 8);
             }

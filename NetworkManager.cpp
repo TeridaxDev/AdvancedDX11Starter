@@ -151,6 +151,14 @@ void NetworkManager::Update(float dt, Player* local)
 			remotePlayers.push_back(nullptr); //Reserved spot for the local player
 
 		}
+		else if (*msgType == 2 && state == NetworkState::Connected) //Player joined
+		{
+			Player* newPlayer = new Player(playerMesh, playerMat, new Camera(0, 10, -5, 3.0f, 1.0f, 1280.0f / 720.0f), false);
+			newPlayer->GetTransform()->SetPosition(0, -1, 0);
+			newPlayer->GetTransform()->SetParent(newPlayer->GetCamera()->GetTransform(), false);
+			remotePlayers.push_back(newPlayer);
+			entities->push_back(newPlayer);
+		}
 		else if (*msgType == 10 && state == NetworkState::Connected) //Remote Player Update
 		{
 			for (size_t i = 0; i < remotePlayers.size(); i++)
@@ -176,6 +184,24 @@ void NetworkManager::Update(float dt, Player* local)
 
 			remotePlayers[i]->Update(dt);
 		}
+
+
+		//Send current player stats
+
+		//Clear buffers
+		std::fill_n(sendBuffer, 500, 0);
+
+		unsigned int msgType = 10;
+
+		std::memcpy(&sendBuffer, &msgType, 4);
+		msgType = playerID;
+		std::memcpy(&sendBuffer[0] + 4, &msgType, 4); //send player ID so the server can identify us
+
+		//Send current position and velocity
+		CopyPlayerMovementData(local, &sendBuffer[0] + 8);
+
+		socket.SendTo(IP, PORT, sendBuffer, 500);
+
 	}
 
 }

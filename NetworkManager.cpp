@@ -63,7 +63,7 @@ NetworkResult NetworkManager::Connect(std::string ip, int port, Player* local, M
 	std::memcpy(&sendBuffer, &msgType, 4);
 
 	//Send initial position and velocity
-	CopyPlayerMovementData(local, &sendBuffer + 4);
+	CopyPlayerMovementData(local, &sendBuffer[0] + 4);
 
 	socket.SendTo(IP, PORT, sendBuffer, 500);
 
@@ -90,16 +90,17 @@ NetworkResult NetworkManager::Disconnect()
 }
 
 //Takes 24 Bytes
-void NetworkManager::CopyPlayerMovementData(Player* player, void* buffer)
+void NetworkManager::CopyPlayerMovementData(Player* player, char* bff)
 {
-	char* bff = (char*)buffer;
 
-	DirectX::XMFLOAT3 position = player->GetCamera()->GetTransform()->GetPosition();
+	float x = player->GetCamera()->GetTransform()->GetPosition().x;
+	float y = player->GetCamera()->GetTransform()->GetPosition().y;
+	float z = player->GetCamera()->GetTransform()->GetPosition().z;
 
 	//Position x/y/z
-	std::memcpy(bff, &position.x, 4);
-	std::memcpy(bff + 4, &position.y, 4);
-	std::memcpy(bff + 8, &position.z, 4);
+	std::memcpy(bff, &x, 4);
+	std::memcpy(bff + 4, &y, 4);
+	std::memcpy(bff + 8, &z, 4);
 
 	//Velocity x/y/z
 	std::memcpy(bff + 12, &player->velocityX, 4);
@@ -129,11 +130,13 @@ void NetworkManager::Update(float dt, Player* local)
 			if (state == NetworkState::Connecting) state = NetworkState::Connected;
 
 			std::cout << "\nJoined as player " << *(msgType + 1) << std::endl;
-
+			playerID = *(msgType + 1);
 			//Create the remote players
 			for (size_t i = 0; i < *(msgType + 1); i++)
 			{
 				Player* newPlayer = new Player(playerMesh, playerMat, new Camera(0,10,-5, 3.0f,1.0f, 1280.0f / 720.0f), false);
+				newPlayer->GetTransform()->SetPosition(0, -1, 0);
+				newPlayer->GetTransform()->SetParent(newPlayer->GetCamera()->GetTransform(), false);
 				remotePlayers.push_back(newPlayer);
 				entities->push_back(newPlayer);
 			}

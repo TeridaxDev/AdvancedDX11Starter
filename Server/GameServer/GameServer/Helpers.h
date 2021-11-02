@@ -19,5 +19,13 @@ public:
 		std::memcpy(bff + 20, &player->velocityZ, 4);
 	}
 
+	static void ReadPlayerMovementData(Player* player, char* buffer)
+	{
+		float* bff = (float*)buffer;
+		player->positionX = *bff;
+		player->positionY = *bff+1;
+		player->positionZ = *bff+2;
+	}
+
 };
 

@@ -55,20 +55,18 @@ void RecvFromLoop()
                     Player* np = new Player(sender, newID);
                     players.push_back(np);
 
-                    Player newPlayer = *np;
-
                     //Read player initial position and velocity
                     float posX, posY, posZ, velX, velY, velZ;
                     float* posData = (float*)&buffer;
-                    posX = *posData + 1;
-                    posY = *posData + 2;
-                    posZ = *posData + 3;
-                    velX = *posData + 4;
-                    velY = *posData + 5;
-                    velZ = *posData + 6;
+                    posX = *(posData + 1);
+                    posY = *(posData + 2);
+                    posZ = *(posData + 3);
+                    velX = *(posData + 4);
+                    velY = *(posData + 5);
+                    velZ = *(posData + 6);
 
-                    newPlayer.SetPosition(posX, posY, posZ);
-                    newPlayer.SetVelocity(velX, velY, velZ);
+                    np->SetPosition(posX, posY, posZ);
+                    np->SetVelocity(velX, velY, velZ);
 
                     /*for (size_t i = 0; i < 8; i++)
                     {
@@ -81,19 +79,22 @@ void RecvFromLoop()
 
                     unsigned int data = 1;
                     std::memcpy(&sendbuffer, &data, 4);
-                    data = newPlayer.GetID();
+                    data = np->GetID();
                     std::memcpy(&sendbuffer[4], &data, 4);
 
                     Socket.SendTo(sender, sendbuffer, 500);
 
-                    std::cout << "Player " << newPlayer.GetID() << " joined.\n";
+                    std::cout << "Player " << np->GetID() << " joined.\n";
 
                     //Clear buffer
                     std::fill_n(buffer, 500, 0);
                     newData = false;
 
                 }
-
+                else if(*msgType == 10) //Player update
+                { 
+                    
+                }
                 //Socket.SendTo(sender, "awrfawfr", 8);
             }
             catch (std::exception& ex)

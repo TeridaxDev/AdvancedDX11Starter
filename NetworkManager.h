@@ -28,6 +28,7 @@ private:
 	WSASession session;
 	UDPSocket socket;
 
+	int playerID;
 	char sendBuffer[500];
 	char recvBuffer[500];
 	bool newData;
@@ -57,7 +58,7 @@ public:
 	NetworkResult Connect(std::string ip, int port, Player* local, Mesh* mesh, Material* mat);
 	NetworkResult Disconnect();
 
-	void CopyPlayerMovementData(Player* player, void* buffer);
+	void CopyPlayerMovementData(Player* player, char* bff);
 	void ReadPlayerMovementData(Player* player, void* buffer);
 
 	void Update(float dt, Player* local);

@@ -5,16 +5,17 @@ class Projectile :
 {
 private:
 
+
+public:
+
+    float gravity = 0;
+
     float velocityX;
     float velocityY;
     float velocityZ;
 
-    float gravity = 0;
-
     float lifespan;
     float age;
-
-public:
 
     Projectile(Mesh* mesh, Material* material, float lifespan);
 

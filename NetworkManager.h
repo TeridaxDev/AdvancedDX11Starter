@@ -4,6 +4,7 @@
 #include <thread>
 #include <vector>
 #include "Player.h"
+#include "Projectile.h"
 #include "Network.h"
 
 enum class NetworkState
@@ -61,7 +62,12 @@ public:
 	void CopyPlayerMovementData(Player* player, char* bff);
 	void ReadPlayerMovementData(Player* player, char* buffer);
 
-	void Update(float dt, Player* local);
+	void CopyProjectileMovementData(Projectile* projectile, char* bff);
+	void ReadProjectileMovementData(Projectile* projectile, char* buffer);
+
+	void AddNetworkProjectile(Projectile* projectile);
+
+	void Update(float dt, Player* local, std::vector<Projectile*>* projectiles);
 
 };
 

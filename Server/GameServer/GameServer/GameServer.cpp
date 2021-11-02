@@ -27,6 +27,7 @@ char sendbuffer[500];
 bool newData;
 
 std::vector<Player*> players;
+std::vector<Projectile*> projectiles;
 
 
 
@@ -91,6 +92,26 @@ void RecvFromLoop()
                     //Clear buffer
                     std::fill_n(buffer, 500, 0);
                     newData = false;
+
+                }
+                else if (*msgType == 3) //New projectile
+                {
+                    Projectile* p = new Projectile();
+
+                    Helpers::ReadProjectileMovementData(p, &sendbuffer[0] + 4);
+
+                    projectiles.push_back(p);
+
+                    //Tell every other player about it
+                    for (size_t i = 0; i < players.size(); i++)
+                    {
+                        //Send a response
+                        std::fill_n(sendbuffer, 500, 0);
+
+                        unsigned int data = 3;
+                        std::memcpy(&sendbuffer, &data, 4);
+                        Socket.SendTo(players[i]->client, sendbuffer, 500);
+                    }
 
                 }
                 else if(*msgType == 10) //Player update
@@ -161,6 +182,19 @@ void GameLoop()
             {
                 players[i]->Update(deltaTime);
             }
+
+            //Update every projectile
+            for (int i = 0; i < projectiles.size(); i++)
+            {
+                Projectile* p = projectiles[i];
+                p->Update(deltaTime);
+                if (p->dead)
+                {
+                    auto it2 = find(projectiles.begin(), projectiles.end(), p);
+                    projectiles.erase(it2);
+                    delete p;
+                }
+            }
         
             //Send player position and velocity data to each client
             std::fill_n(sendbuffer, 500, 0);
@@ -171,6 +205,10 @@ void GameLoop()
             for (size_t i = 0; i < players.size(); i++)
             {
                 Helpers::CopyPlayerMovementData(players[i], &sendbuffer[0] + (i * 36) + 4);
+            }
+            for (size_t i = 0; i < projectiles.size(); i++)
+            {
+                Helpers::CopyProjectileMovementData(projectiles[i], &sendbuffer[0] + (players.size() * 36) + (i * 44) + 4);
             }
             for (size_t i = 0; i < players.size(); i++)
             {

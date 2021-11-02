@@ -138,7 +138,86 @@ void NetworkManager::ReadPlayerMovementData(Player* player, char* buffer)
 	player->GetCamera()->GetTransform()->SetRotation(pitch, yaw, roll);
 }
 
-void NetworkManager::Update(float dt, Player* local)
+//Takes 40 bytes
+void NetworkManager::CopyProjectileMovementData(Projectile* projectile, char* bff)
+{
+	float x = projectile->GetTransform()->GetPosition().x;
+	float y = projectile->GetTransform()->GetPosition().y;
+	float z = projectile->GetTransform()->GetPosition().z;
+
+	//Position x/y/z
+	std::memcpy(bff, &x, 4);
+	std::memcpy(bff + 4, &y, 4);
+	std::memcpy(bff + 8, &z, 4);
+
+	//Velocity x/y/z
+	std::memcpy(bff + 12, &projectile->velocityX, 4);
+	std::memcpy(bff + 16, &projectile->velocityY, 4);
+	std::memcpy(bff + 20, &projectile->velocityZ, 4);
+
+	//Rotation pitch/yaw/roll
+
+	float pitch = projectile->GetTransform()->GetPitchYawRoll().x;
+	float yaw = projectile->GetTransform()->GetPitchYawRoll().y;
+	float roll = projectile->GetTransform()->GetPitchYawRoll().z;
+	float gravity = projectile->gravity;
+
+	std::memcpy(bff + 24, &pitch, 4);
+	std::memcpy(bff + 28, &yaw, 4);
+	std::memcpy(bff + 32, &roll, 4);
+	std::memcpy(bff + 36, &gravity, 4);
+
+	//Age
+	float lifespan = projectile->lifespan;
+	float age = projectile->age;
+
+	std::memcpy(bff + 40, &lifespan, 4);
+	std::memcpy(bff + 44, &age, 4);
+
+}
+
+void NetworkManager::ReadProjectileMovementData(Projectile* projectile, char* buffer)
+{
+	float* bff = (float*)buffer;
+
+	float posX, posY, posZ, velX, velY, velZ, pitch, yaw, roll, grav, lifespan, age;
+	posX = *bff;
+	posY = *(bff + 1);
+	posZ = *(bff + 2);
+	velX = *(bff + 3);
+	velY = *(bff + 4);
+	velZ = *(bff + 5);
+	pitch = *(bff + 6);
+	yaw = *(bff + 7);
+	roll = *(bff + 8);
+	grav = *(bff + 9);
+	lifespan = *(bff + 10);
+	age = *(bff + 11);
+
+	projectile->GetTransform()->SetPosition(posX, posY, posZ);
+	projectile->SetVelocity(velX, velY, velZ, grav);
+	projectile->GetTransform()->SetRotation(pitch, yaw, roll);
+	projectile->lifespan = lifespan;
+	projectile->age = age;
+}
+
+void NetworkManager::AddNetworkProjectile(Projectile* projectile)
+{
+	//Clear buffers
+	std::fill_n(sendBuffer, 500, 0);
+
+	unsigned int msgType = 3;
+
+	std::memcpy(&sendBuffer, &msgType, 4);
+
+	//Send initial position and velocity
+	CopyProjectileMovementData(projectile, &sendBuffer[0] + 4);
+
+	socket.SendTo(IP, PORT, sendBuffer, 500);
+
+}
+
+void NetworkManager::Update(float dt, Player* local, std::vector<Projectile*>* projectiles)
 {
 
 	if (newData)
@@ -173,6 +252,12 @@ void NetworkManager::Update(float dt, Player* local)
 			remotePlayers.push_back(newPlayer);
 			entities->push_back(newPlayer);
 		}
+		else if (*msgType == 3 && state == NetworkState::Connected) //New projectile
+		{
+			Projectile* newProjectile = new Projectile(playerMesh, playerMat, 5);
+			entities->push_back(newProjectile);
+			newProjectile->GetTransform()->SetScale(0.2f, 0.2f, 0.2f);
+		}
 		else if (*msgType == 10 && state == NetworkState::Connected) //Remote Player Update
 		{
 			for (size_t i = 0; i < remotePlayers.size(); i++)
@@ -180,6 +265,10 @@ void NetworkManager::Update(float dt, Player* local)
 				if (remotePlayers[i] == nullptr) continue;
 
 				ReadPlayerMovementData(remotePlayers[i], &recvBuffer[0] + 4 + (36 * i));
+			}
+			for (size_t i = 0; i < projectiles->size(); i++)
+			{
+				ReadProjectileMovementData((*projectiles)[i], &recvBuffer[0] + 4 + (36 * remotePlayers.size()) + (44 * i));
 			}
 		}
 

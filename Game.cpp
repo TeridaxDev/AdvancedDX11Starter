@@ -706,6 +706,8 @@ void Game::Update(float deltaTime, float totalTime)
 		tf->SetPosition(camtf->GetPosition().x + localPlayer->velocityX * deltaTime, camtf->GetPosition().y + localPlayer->velocityY * deltaTime, camtf->GetPosition().z + localPlayer->velocityZ * deltaTime);
 		tf->SetRotation(camtf->GetPitchYawRoll().x, camtf->GetPitchYawRoll().y, camtf->GetPitchYawRoll().z);
 		bullet->SetVelocity(0, 5, 20, -9.8f);
+		if(netManager->GetNetworkState() == NetworkState::Connected)
+			netManager->AddNetworkProjectile(bullet);
 	}
 
 	for (int i = 0; i < projectiles.size(); i++)
@@ -722,7 +724,7 @@ void Game::Update(float deltaTime, float totalTime)
 		}
 	}
 
-	netManager->Update(deltaTime, localPlayer);
+	netManager->Update(deltaTime, localPlayer, &projectiles);
 
 	// Check individual input
 	if (input.KeyDown(VK_ESCAPE)) Quit();

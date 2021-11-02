@@ -13,17 +13,20 @@ private:
 
 	Camera* camera;
 
+	bool localPlayer;
 
 	//TEMPORARY
 	float floorHeight = -3;
 
 public:
 
-	Player(Mesh* mesh, Material* material, Camera* camera);
+	Player(Mesh* mesh, Material* material, Camera* camera, bool local = true);
 
 	Camera* GetCamera() { return camera; }
 
 	void Update(float dt);
+
+	void SetVelocity(float x, float y, float z);
 
 	float velocityX;
 	float velocityY;

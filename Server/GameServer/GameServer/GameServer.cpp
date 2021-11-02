@@ -8,8 +8,9 @@
 #include <thread>
 #include <vector>
 #include <bitset>
-#include "../../../Network.h"
 #include "Player.h"
+#include "Helpers.h"
+#include "../../../Network.h"
 
 using namespace std::chrono;
 
@@ -54,18 +55,32 @@ void RecvFromLoop()
                     Player newPlayer = Player(sender, newID);
                     players.push_back(newPlayer);
 
-                    std::fill_n(sendbuffer, 500, 0);
+                    //Read player initial position and velocity
+                    float posX, posY, posZ, velX, velY, velZ;
+                    float* posData = (float*)&buffer;
+                    posX = *posData + 1;
+                    posY = *posData + 2;
+                    posZ = *posData + 3;
+                    velX = *posData + 4;
+                    velY = *posData + 5;
+                    velZ = *posData + 6;
 
-                    unsigned int data = 1;
-                    std::memcpy(&sendbuffer, &data, 4);
-                    data = newPlayer.GetID();
-                    std::memcpy(&sendbuffer[4], &data, 4);
+                    newPlayer.SetPosition(posX, posY, posZ);
+                    newPlayer.SetVelocity(velX, velY, velZ);
 
                     /*for (size_t i = 0; i < 8; i++)
                     {
                         std::bitset<8> x(sendbuffer[i]);
                         std::cout << x << " ";
                     }*/
+
+                    //Send a response
+                    std::fill_n(sendbuffer, 500, 0);
+
+                    unsigned int data = 1;
+                    std::memcpy(&sendbuffer, &data, 4);
+                    data = newPlayer.GetID();
+                    std::memcpy(&sendbuffer[4], &data, 4);
 
                     Socket.SendTo(sender, sendbuffer, 500);
 
@@ -99,7 +114,30 @@ void GameLoop()
         if (FPS.count() >= 1)
         {
             fpsTimer = steady_clock::now();
+            float deltaTime = duration_cast<ms>(FPS).count();
             //std::cout << "LastFrame: " << duration_cast<ms>(FPS).count() << "ms  |  FPS: " << FPS.count() * 60 << std::endl;
+        
+            //Update every player
+            for (size_t i = 0; i < players.size(); i++)
+            {
+                players[i].Update(deltaTime);
+            }
+        
+            //Send player position and velocity data to each client
+            std::fill_n(sendbuffer, 500, 0);
+
+            int msgtyp = 10;
+
+            std::memcpy(&sendbuffer, &msgtyp, 4);
+            for (size_t i = 0; i < players.size(); i++)
+            {
+                Helpers::CopyPlayerMovementData(&players[i], &sendbuffer + (i * 24) + 4);
+            }
+            for (size_t i = 0; i < players.size(); i++)
+            {
+                Socket.SendTo(players[i].client, sendbuffer, 500);
+            }
+        
         }
     }
 }

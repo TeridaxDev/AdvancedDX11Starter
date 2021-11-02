@@ -2,6 +2,8 @@
 
 #include <string>
 #include <thread>
+#include <vector>
+#include "Player.h"
 #include "Network.h"
 
 enum class NetworkState
@@ -31,22 +33,34 @@ private:
 	bool newData;
 	bool running;
 
+	std::vector<Player*> remotePlayers;
+
 	NetworkState state = NetworkState::Offline;
 
 	std::thread recvFromThread;
 
 	void ReceiveFrom();
 
+	//Data required to make remote players
+	Mesh* playerMesh;
+	Material* playerMat;
+	std::vector<GameEntity*>* entities;
+
 public:
 	
+	NetworkManager(std::vector<GameEntity*>* entityList) { entities = entityList; }
+
 	~NetworkManager();
 
 	NetworkState GetNetworkState() { return state; }
 
-	NetworkResult Connect(std::string ip, int port);
+	NetworkResult Connect(std::string ip, int port, Player* local, Mesh* mesh, Material* mat);
 	NetworkResult Disconnect();
 
-	void Update(float dt);
+	void CopyPlayerMovementData(Player* player, void* buffer);
+	void ReadPlayerMovementData(Player* player, void* buffer);
+
+	void Update(float dt, Player* local);
 
 };
 

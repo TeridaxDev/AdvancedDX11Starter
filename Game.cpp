@@ -137,7 +137,7 @@ void Game::Init()
 	ImGui_ImplDX11_Init(device.Get(), context.Get());
 
 	renderer = new Renderer(device, context, swapChain, backBufferRTV, depthStencilView, width, height, sky, entities, lights);
-	netManager = new NetworkManager();
+	netManager = new NetworkManager(&entities);
 
 }
 
@@ -671,7 +671,7 @@ void Game::Update(float deltaTime, float totalTime)
 		if (ImGui::Button("Connect"))
 		{
 			char* pEnd;
-			netManager->Connect(ip, strtol(port, &pEnd, 0));
+			netManager->Connect(ip, strtol(port, &pEnd, 0), localPlayer, Assets::GetInstance().GetMesh("Models\\LEGO_Man.obj"), materials[0]);
 		}
 	}
 	else if (s == NetworkState::Connecting)
@@ -722,7 +722,7 @@ void Game::Update(float deltaTime, float totalTime)
 		}
 	}
 
-	netManager->Update(deltaTime);
+	netManager->Update(deltaTime, localPlayer);
 
 	// Check individual input
 	if (input.KeyDown(VK_ESCAPE)) Quit();

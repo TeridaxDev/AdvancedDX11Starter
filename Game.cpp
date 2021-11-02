@@ -123,7 +123,7 @@ void Game::Init()
 		1.0f,		// Mouse look
 		this->width / (float)this->height); // Aspect ratio
 
-	localPlayer = new Player(Assets::GetInstance().GetMesh("Models\\LEGO_Man.obj"), materials[0], camera);
+	localPlayer = new Player(Assets::GetInstance().GetMesh("Models\\sphere.obj"), materials[0], camera);
 	localPlayer->GetTransform()->SetPosition(0, -1, 0);
 	localPlayer->GetTransform()->SetParent(camera->GetTransform(), false);
 	//entities.push_back(localPlayer); //UNCOMMENT TO RENDER THE PLAYER'S BODY. DONT FORGET TO COMMENT OUT "delete localPlayer"
@@ -671,7 +671,7 @@ void Game::Update(float deltaTime, float totalTime)
 		if (ImGui::Button("Connect"))
 		{
 			char* pEnd;
-			netManager->Connect(ip, strtol(port, &pEnd, 0), localPlayer, Assets::GetInstance().GetMesh("Models\\LEGO_Man.obj"), materials[0]);
+			netManager->Connect(ip, strtol(port, &pEnd, 0), localPlayer, Assets::GetInstance().GetMesh("Models\\sphere.obj"), materials[0]);
 		}
 	}
 	else if (s == NetworkState::Connecting)

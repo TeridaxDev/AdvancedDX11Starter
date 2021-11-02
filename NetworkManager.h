@@ -59,7 +59,7 @@ public:
 	NetworkResult Disconnect();
 
 	void CopyPlayerMovementData(Player* player, char* bff);
-	void ReadPlayerMovementData(Player* player, void* buffer);
+	void ReadPlayerMovementData(Player* player, char* buffer);
 
 	void Update(float dt, Player* local);
 

@@ -140,7 +140,15 @@ void GameLoop()
             {
                 Socket.SendTo(players[i]->client, sendbuffer, 500);
             }
-        
+            /*if (players.size() > 0)
+            {
+                for (size_t i = 0; i < 28; i++)
+                {
+                    std::bitset<8> x(sendbuffer[i]);
+                    std::cout << x << " ";
+                }
+                std::cout << "\n";
+            }*/
         }
     }
 }

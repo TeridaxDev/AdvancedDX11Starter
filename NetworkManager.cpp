@@ -108,12 +108,20 @@ void NetworkManager::CopyPlayerMovementData(Player* player, char* bff)
 	std::memcpy(bff + 20, &player->velocityZ, 4);
 }
 
-void NetworkManager::ReadPlayerMovementData(Player* player, void* buffer)
+void NetworkManager::ReadPlayerMovementData(Player* player, char* buffer)
 {
 	float* bff = (float*)buffer;
 
-	player->GetCamera()->GetTransform()->SetPosition(*bff, *(bff+1), *(bff+2));
-	player->SetVelocity(*(bff + 3), *(bff + 4), *(bff + 5));
+	float posX, posY, posZ, velX, velY, velZ;
+	posX = *bff;
+	posY = *(bff+1);
+	posZ = *(bff+2);
+	velX = *(bff+3);
+	velY = *(bff+4);
+	velZ = *(bff+5);
+
+	player->GetCamera()->GetTransform()->SetPosition(posX, posY, posZ);
+	player->SetVelocity(velX, velY, velZ);
 }
 
 void NetworkManager::Update(float dt, Player* local)
@@ -149,7 +157,7 @@ void NetworkManager::Update(float dt, Player* local)
 			{
 				if (remotePlayers[i] == nullptr) continue;
 
-				ReadPlayerMovementData(remotePlayers[i], &recvBuffer + 4 + (24 * i));
+				ReadPlayerMovementData(remotePlayers[i], &recvBuffer[0] + 4 + (24 * i));
 			}
 		}
 

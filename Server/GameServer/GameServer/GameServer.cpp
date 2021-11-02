@@ -26,7 +26,7 @@ char buffer[500];
 char sendbuffer[500];
 bool newData;
 
-std::vector<Player> players;
+std::vector<Player*> players;
 
 
 
@@ -52,8 +52,10 @@ void RecvFromLoop()
                     //Respond with 1 to accept, followed by a player ID
 
                     int newID = players.size();
-                    Player newPlayer = Player(sender, newID);
-                    players.push_back(newPlayer);
+                    Player* np = new Player(sender, newID);
+                    players.push_back(np);
+
+                    Player newPlayer = *np;
 
                     //Read player initial position and velocity
                     float posX, posY, posZ, velX, velY, velZ;
@@ -120,7 +122,7 @@ void GameLoop()
             //Update every player
             for (size_t i = 0; i < players.size(); i++)
             {
-                players[i].Update(deltaTime);
+                players[i]->Update(deltaTime);
             }
         
             //Send player position and velocity data to each client
@@ -131,11 +133,11 @@ void GameLoop()
             std::memcpy(&sendbuffer, &msgtyp, 4);
             for (size_t i = 0; i < players.size(); i++)
             {
-                Helpers::CopyPlayerMovementData(&players[i], &sendbuffer + (i * 24) + 4);
+                Helpers::CopyPlayerMovementData(players[i], &sendbuffer[0] + (i * 24) + 4);
             }
             for (size_t i = 0; i < players.size(); i++)
             {
-                Socket.SendTo(players[i].client, sendbuffer, 500);
+                Socket.SendTo(players[i]->client, sendbuffer, 500);
             }
         
         }

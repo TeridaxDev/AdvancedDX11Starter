@@ -5,9 +5,8 @@
 static class Helpers
 {
 public:
-	static void CopyPlayerMovementData(Player* player, void* buffer)
+	static void CopyPlayerMovementData(Player* player, char* bff)
 	{
-		char* bff = (char*)buffer;
 
 		//Position x/y/z
 		std::memcpy(bff, &player->positionX, 4);

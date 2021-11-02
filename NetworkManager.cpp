@@ -32,6 +32,7 @@ NetworkManager::~NetworkManager()
 		auto it2 = find(remotePlayers.begin(), remotePlayers.end(), p);
 		entities->erase(it);
 		remotePlayers.erase(it2);
+		delete p->GetCamera();
 		delete p;
 	}
 
@@ -93,7 +94,7 @@ void NetworkManager::CopyPlayerMovementData(Player* player, void* buffer)
 {
 	char* bff = (char*)buffer;
 
-	DirectX::XMFLOAT3 position = player->GetTransform()->GetPosition();
+	DirectX::XMFLOAT3 position = player->GetCamera()->GetTransform()->GetPosition();
 
 	//Position x/y/z
 	std::memcpy(bff, &position.x, 4);
@@ -132,7 +133,7 @@ void NetworkManager::Update(float dt, Player* local)
 			//Create the remote players
 			for (size_t i = 0; i < *(msgType + 1); i++)
 			{
-				Player* newPlayer = new Player(playerMesh, playerMat, nullptr, false);
+				Player* newPlayer = new Player(playerMesh, playerMat, new Camera(0,10,-5, 3.0f,1.0f, 1280.0f / 720.0f), false);
 				remotePlayers.push_back(newPlayer);
 				entities->push_back(newPlayer);
 			}
@@ -153,6 +154,17 @@ void NetworkManager::Update(float dt, Player* local)
 		//Clear buffer
 		std::fill_n(recvBuffer, 500, 0);
 		newData = false;
+	}
+
+
+	if (state == NetworkState::Connected)
+	{
+		for (size_t i = 0; i < remotePlayers.size(); i++)
+		{
+			if (remotePlayers[i] == nullptr) continue;
+
+			remotePlayers[i]->Update(dt);
+		}
 	}
 
 }

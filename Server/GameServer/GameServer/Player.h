@@ -24,6 +24,10 @@ public:
 	float velocityY;
 	float velocityZ;
 
+	float pitch;
+	float yaw;
+	float roll;
+
 	Player(sockaddr_in sender, int id);
 
 	int GetID() { return ID; }

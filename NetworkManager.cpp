@@ -89,7 +89,7 @@ NetworkResult NetworkManager::Disconnect()
 	return NetworkResult::SUCCESS;
 }
 
-//Takes 24 Bytes
+//Takes 36 Bytes
 void NetworkManager::CopyPlayerMovementData(Player* player, char* bff)
 {
 
@@ -106,22 +106,36 @@ void NetworkManager::CopyPlayerMovementData(Player* player, char* bff)
 	std::memcpy(bff + 12, &player->velocityX, 4);
 	std::memcpy(bff + 16, &player->velocityY, 4);
 	std::memcpy(bff + 20, &player->velocityZ, 4);
+
+	//Rotation pitch/yaw/roll
+
+	float pitch = player->GetCamera()->GetTransform()->GetPitchYawRoll().x;
+	float yaw = player->GetCamera()->GetTransform()->GetPitchYawRoll().y;
+	float roll = player->GetCamera()->GetTransform()->GetPitchYawRoll().z;
+
+	std::memcpy(bff + 24, &pitch, 4);
+	std::memcpy(bff + 28, &yaw, 4);
+	std::memcpy(bff + 32, &roll, 4);
 }
 
 void NetworkManager::ReadPlayerMovementData(Player* player, char* buffer)
 {
 	float* bff = (float*)buffer;
 
-	float posX, posY, posZ, velX, velY, velZ;
+	float posX, posY, posZ, velX, velY, velZ, pitch, yaw, roll;
 	posX = *bff;
 	posY = *(bff+1);
 	posZ = *(bff+2);
 	velX = *(bff+3);
 	velY = *(bff+4);
 	velZ = *(bff+5);
+	pitch = *(bff + 6);
+	yaw = *(bff + 7);
+	roll = *(bff + 8);
 
 	player->GetCamera()->GetTransform()->SetPosition(posX, posY, posZ);
 	player->SetVelocity(velX, velY, velZ);
+	player->GetCamera()->GetTransform()->SetRotation(pitch, yaw, roll);
 }
 
 void NetworkManager::Update(float dt, Player* local)
@@ -165,7 +179,7 @@ void NetworkManager::Update(float dt, Player* local)
 			{
 				if (remotePlayers[i] == nullptr) continue;
 
-				ReadPlayerMovementData(remotePlayers[i], &recvBuffer[0] + 4 + (24 * i));
+				ReadPlayerMovementData(remotePlayers[i], &recvBuffer[0] + 4 + (36 * i));
 			}
 		}
 

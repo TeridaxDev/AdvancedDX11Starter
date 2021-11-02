@@ -1,4 +1,5 @@
 #include "Player.h"
+#include <DirectXMath.h>
 
 Player::Player(sockaddr_in sender, int id)
 {

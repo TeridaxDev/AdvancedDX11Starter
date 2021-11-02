@@ -68,17 +68,7 @@ void RecvFromLoop()
                     players.push_back(np);
 
                     //Read player initial position and velocity
-                    float posX, posY, posZ, velX, velY, velZ;
-                    float* posData = (float*)&buffer;
-                    posX = *(posData + 1);
-                    posY = *(posData + 2);
-                    posZ = *(posData + 3);
-                    velX = *(posData + 4);
-                    velY = *(posData + 5);
-                    velZ = *(posData + 6);
-
-                    np->SetPosition(posX, posY, posZ);
-                    np->SetVelocity(velX, velY, velZ);
+                    Helpers::ReadPlayerMovementData(np, &buffer[0] + 1);
 
                     /*for (size_t i = 0; i < 8; i++)
                     {
@@ -180,7 +170,7 @@ void GameLoop()
             std::memcpy(&sendbuffer, &msgtyp, 4);
             for (size_t i = 0; i < players.size(); i++)
             {
-                Helpers::CopyPlayerMovementData(players[i], &sendbuffer[0] + (i * 24) + 4);
+                Helpers::CopyPlayerMovementData(players[i], &sendbuffer[0] + (i * 36) + 4);
             }
             for (size_t i = 0; i < players.size(); i++)
             {

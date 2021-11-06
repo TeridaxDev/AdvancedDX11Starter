@@ -3,8 +3,48 @@
 #include "Extensions/imgui/imgui.h"
 #include "Extensions/imgui/backends/imgui_impl_dx11.h"
 #include "Extensions/imgui/backends/imgui_impl_win32.h"
+#include "AssetLoader.h"
 
 #include <DirectXMath.h>
+
+using namespace DirectX;
+
+Renderer::Renderer(Microsoft::WRL::ComPtr<ID3D11Device> device, Microsoft::WRL::ComPtr<ID3D11DeviceContext> context, Microsoft::WRL::ComPtr<IDXGISwapChain> swapChain, Microsoft::WRL::ComPtr<ID3D11RenderTargetView> backBufferRTV, Microsoft::WRL::ComPtr<ID3D11DepthStencilView> depthBufferDSV, unsigned int windowWidth, unsigned int windowHeight, Sky* sky, std::vector<GameEntity*>& entities, std::vector<Light>& lights)
+	: device(device), context(context), swapChain(swapChain), backBufferRTV(backBufferRTV), depthBufferDSV(depthBufferDSV),
+	windowWidth(windowWidth), windowHeight(windowHeight), sky(sky),
+	entities(entities), lights(lights)
+{
+
+	// Set up the ssao offsets (count must match shader!)
+	for (int i = 0; i < ARRAYSIZE(ssaoOffsets); i++)
+	{
+		ssaoOffsets[i] = DirectX::XMFLOAT4(
+			(float)rand() / RAND_MAX * 2 - 1,	// -1 to 1
+			(float)rand() / RAND_MAX * 2 - 1,	// -1 to 1
+			(float)rand() / RAND_MAX,			// 0 to 1
+			0);
+
+		XMVECTOR v = XMVector3Normalize(XMLoadFloat4(&ssaoOffsets[i]));
+
+		// Scale up over the array
+		float scale = (float)i / ARRAYSIZE(ssaoOffsets);
+		XMVECTOR scaleVector = XMVectorLerp(
+			XMVectorSet(0.1f, 0.1f, 0.1f, 1),
+			XMVectorSet(1, 1, 1, 1),
+			scale * scale);
+
+		XMStoreFloat4(&ssaoOffsets[i], v * scaleVector);
+
+	}
+
+	CreateGenericRenderTarget(windowWidth, windowHeight, sceneColorsRTV, sceneColorsSRV);
+	CreateGenericRenderTarget(windowWidth, windowHeight, sceneNormalsRTV, sceneNormalsSRV);
+	CreateGenericRenderTarget(windowWidth, windowHeight, sceneAmbientRTV, sceneAmbientSRV);
+	CreateGenericRenderTarget(windowWidth, windowHeight, sceneDepthRTV, sceneDepthSRV, DXGI_FORMAT_R32_FLOAT);
+	CreateGenericRenderTarget(windowWidth, windowHeight, ssaoResultRTV, ssaoResultSRV);
+	CreateGenericRenderTarget(windowWidth, windowHeight, ssaoBlurRTV, ssaoBlurSRV);
+
+}
 
 void Renderer::PostResize(unsigned int windowWidth, unsigned int windowHeight, Microsoft::WRL::ComPtr<ID3D11RenderTargetView> backBufferRTV, Microsoft::WRL::ComPtr<ID3D11DepthStencilView> depthBufferDSV)
 {
@@ -12,6 +52,23 @@ void Renderer::PostResize(unsigned int windowWidth, unsigned int windowHeight, M
 	Renderer::depthBufferDSV = depthBufferDSV;
 	Renderer::windowWidth = windowWidth;
 	Renderer::windowHeight = windowHeight;
+
+	sceneColorsRTV.Reset();
+	sceneColorsSRV.Reset();
+	sceneNormalsRTV.Reset();
+	sceneNormalsSRV.Reset();
+	sceneAmbientRTV.Reset();
+	sceneAmbientSRV.Reset();
+	sceneDepthRTV.Reset();
+	sceneDepthSRV.Reset();
+
+	CreateGenericRenderTarget(windowWidth, windowHeight, sceneColorsRTV, sceneColorsSRV);
+	CreateGenericRenderTarget(windowWidth, windowHeight, sceneNormalsRTV, sceneNormalsSRV);
+	CreateGenericRenderTarget(windowWidth, windowHeight, sceneAmbientRTV, sceneAmbientSRV);
+	CreateGenericRenderTarget(windowWidth, windowHeight, sceneDepthRTV, sceneDepthSRV, DXGI_FORMAT_R32_FLOAT);
+	CreateGenericRenderTarget(windowWidth, windowHeight, ssaoResultRTV, ssaoResultSRV);
+	CreateGenericRenderTarget(windowWidth, windowHeight, ssaoBlurRTV, ssaoBlurSRV);
+
 }
 
 void Renderer::Render(Camera* camera, int lightCount, SimpleVertexShader* lightVS, SimplePixelShader* lightPS, Mesh* lightMesh)
@@ -24,12 +81,24 @@ void Renderer::Render(Camera* camera, int lightCount, SimpleVertexShader* lightV
 	//  - Do this ONCE PER FRAME
 	//  - At the beginning of Draw (before drawing *anything*)
 	context->ClearRenderTargetView(backBufferRTV.Get(), color);
+	context->ClearRenderTargetView(sceneColorsRTV.Get(), color);
+	context->ClearRenderTargetView(sceneNormalsRTV.Get(), color);
+	context->ClearRenderTargetView(sceneAmbientRTV.Get(), color);
+	context->ClearRenderTargetView(sceneDepthRTV.Get(), color);
 	context->ClearDepthStencilView(
 		depthBufferDSV.Get(),
 		D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL,
 		1.0f,
 		0);
 
+
+	ID3D11RenderTargetView* renderTargets[4] = {};
+	renderTargets[0] = sceneColorsRTV.Get();
+	renderTargets[1] = sceneNormalsRTV.Get();
+	renderTargets[2] = sceneAmbientRTV.Get();
+	renderTargets[3] = sceneDepthRTV.Get();
+
+	context->OMSetRenderTargets(4, renderTargets, depthBufferDSV.Get());
 
 	// Draw all of the entities
 	for (auto ge : entities)
@@ -60,8 +129,21 @@ void Renderer::Render(Camera* camera, int lightCount, SimpleVertexShader* lightV
 	// Draw the sky
 	sky->Draw(camera);
 
-	// Draw some UI
-	//DrawUI();
+	//Re-enable Back Buffer
+	context->OMSetRenderTargets(1, backBufferRTV.GetAddressOf(), 0);
+
+	// Lastly, get the final color results to the screen!
+	Assets& assets = Assets::GetInstance();
+	SimpleVertexShader* vs = assets.GetVertexShader("FullscreenVS.cso");
+	SimplePixelShader* ps = assets.GetPixelShader("SimpleTexturePS.cso");
+	vs->SetShader();
+	ps->SetShader();
+	ps->SetShaderResourceView("Pixels", sceneColorsSRV);
+	// Note: not setting a sampler here for 2 reasons:
+	// - 1: We don't have a sampler created here in the renderer
+	// - 2: A null sampler just uses the default sampling options, which
+	//      are good enough for just plastering a texture on the screen
+	context->Draw(3, 0);
 
 	// Draw ImGui
 	ImGui::Render();
@@ -75,6 +157,12 @@ void Renderer::Render(Camera* camera, int lightCount, SimpleVertexShader* lightV
 	// Due to the usage of a more sophisticated swap chain,
 	// the render target must be re-bound after every call to Present()
 	context->OMSetRenderTargets(1, backBufferRTV.GetAddressOf(), depthBufferDSV.Get());
+
+
+	// Unbind all SRVs at the end of the frame so they're not still bound for input
+	// when we begin the MRTs of the next frame
+	ID3D11ShaderResourceView* nullSRVs[16] = {};
+	context->PSSetShaderResources(0, 16, nullSRVs);
 
 }
 
@@ -129,4 +217,53 @@ void Renderer::DrawPointLights(Camera* camera, int lightCount, SimpleVertexShade
 		// Draw
 		lightMesh->SetBuffersAndDraw(context);
 	}
+}
+
+Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> Renderer::GetSceneColorsSRV()
+{
+	return sceneColorsSRV;
+}
+
+Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> Renderer::GetSceneNormalsSRV()
+{
+	return sceneNormalsSRV;
+}
+
+Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> Renderer::GetSceneAmbientSRV()
+{
+	return sceneAmbientSRV;
+}
+
+Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> Renderer::GetSceneDepthSRV()
+{
+	return sceneDepthSRV;
+}
+
+void Renderer::CreateGenericRenderTarget(unsigned int width, unsigned int height, Microsoft::WRL::ComPtr<ID3D11RenderTargetView>& rtv, Microsoft::WRL::ComPtr<ID3D11ShaderResourceView>& srv, DXGI_FORMAT colorFormat)
+{
+
+	Microsoft::WRL::ComPtr<ID3D11Texture2D> rtTexture;
+
+	D3D11_TEXTURE2D_DESC textDesc = {};
+
+	textDesc.Width = width;
+	textDesc.Height = height;
+	textDesc.ArraySize = 1;
+	textDesc.BindFlags = D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE;
+	textDesc.Format = colorFormat;
+	textDesc.MipLevels = 1;
+	textDesc.MiscFlags = 0;
+	textDesc.SampleDesc.Count = 1;
+	device->CreateTexture2D(&textDesc, 0, rtTexture.GetAddressOf());
+
+	D3D11_RENDER_TARGET_VIEW_DESC rtvDesc = {};
+
+	rtvDesc.ViewDimension = D3D11_RTV_DIMENSION_TEXTURE2D;
+	rtvDesc.Texture2D.MipSlice = 0;
+	rtvDesc.Format = textDesc.Format;
+	device->CreateRenderTargetView(rtTexture.Get(), &rtvDesc, rtv.GetAddressOf());
+
+	device->CreateShaderResourceView(rtTexture.Get(), 0, srv.GetAddressOf());
+
+
 }

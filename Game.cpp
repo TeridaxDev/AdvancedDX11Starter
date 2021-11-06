@@ -590,37 +590,16 @@ void Game::Update(float deltaTime, float totalTime)
 	// Show the demo window
 	//ImGui:: ShowDemoWindow();
 
-	ImGui::Begin("Stats");
+	ImGui::Begin("Render Targets");
 
-	ImGui::Text("Framerate: ");
-	ImGui::SameLine();
-	ImGui::Text(std::to_string(io.Framerate).c_str());
-	ImGui::Text("Width: ");
-	ImGui::SameLine();
-	ImGui::Text(std::to_string(width).c_str());
-	ImGui::SameLine();
-	ImGui::Text("Height: ");
-	ImGui::SameLine();
-	ImGui::Text(std::to_string(height).c_str());
-	ImGui::Text("Aspect Ratio: ");
-	ImGui::SameLine();
-	ImGui::Text(std::to_string((float)width / (float)height).c_str());
-	ImGui::Text("Entity Count");
-	ImGui::SameLine();
-	ImGui::Text(std::to_string(entities.size()).c_str());
-	ImGui::Text("\nPlayer Position");
-	ImGui::Text("X: ");
-	ImGui::SameLine();
-	ImGui::Text(std::to_string(camera->GetTransform()->GetPosition().x).c_str());
-	ImGui::SameLine();
-	ImGui::Text(" Y: ");
-	ImGui::SameLine();
-	ImGui::Text(std::to_string(camera->GetTransform()->GetPosition().y).c_str());
-	ImGui::SameLine();
-	ImGui::Text(" Z: ");
-	ImGui::SameLine();
-	ImGui::Text(std::to_string(camera->GetTransform()->GetPosition().z).c_str());
-
+	ImGui::Text("Scene Color");
+	ImGui::Image(renderer->GetSceneColorsSRV().Get(), ImVec2(500, 300));
+	ImGui::Text("Scene Normals");
+	ImGui::Image(renderer->GetSceneNormalsSRV().Get(), ImVec2(500, 300));
+	ImGui::Text("Scene Ambient Occlusion");
+	ImGui::Image(renderer->GetSceneAmbientSRV().Get(), ImVec2(500, 300));
+	ImGui::Text("Scene Depth");
+	ImGui::Image(renderer->GetSceneDepthSRV().Get(), ImVec2(500, 300));
 
 	ImGui::End();
 

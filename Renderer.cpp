@@ -17,6 +17,9 @@ Renderer::Renderer(Microsoft::WRL::ComPtr<ID3D11Device> device, Microsoft::WRL::
 
 	ambientNonPBR = XMFLOAT3(0.1f, 0.1f, 0.25f);
 
+	ssaoSamples = 64;
+	ssaoRadius = 2.0f;
+
 	// Set up the ssao offsets (count must match shader!)
 	for (int i = 0; i < ARRAYSIZE(ssaoOffsets); i++)
 	{
@@ -193,6 +196,8 @@ void Renderer::Render(Camera* camera, int lightCount, SimpleVertexShader* lightV
 	ps->SetShaderResourceView("SceneColorsNoAmbient", sceneColorsSRV);
 	ps->SetShaderResourceView("Ambient", sceneAmbientSRV);
 	ps->SetShaderResourceView("SSAOBlur", ssaoBlurSRV);
+	ps->SetInt("ssaoEnabled", true);
+	ps->SetInt("ssaoOutputOnly", false);
 	ps->SetFloat2("pixelSize", XMFLOAT2(1.0f / windowWidth, 1.0f / windowHeight));
 	ps->CopyAllBufferData();
 	context->Draw(3, 0);
@@ -293,7 +298,7 @@ Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> Renderer::GetSceneDepthSRV()
 
 Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> Renderer::GetSSAO()
 {
-	return ssaoResultSRV;
+	return ssaoBlurSRV;
 }
 
 void Renderer::CreateGenericRenderTarget(unsigned int width, unsigned int height, Microsoft::WRL::ComPtr<ID3D11RenderTargetView>& rtv, Microsoft::WRL::ComPtr<ID3D11ShaderResourceView>& srv, DXGI_FORMAT colorFormat)

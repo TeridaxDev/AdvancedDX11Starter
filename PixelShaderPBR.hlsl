@@ -17,6 +17,7 @@ cbuffer perFrame : register(b0)
 
 	// The number of mip levels in the specular IBL map
 	int SpecIBLTotalMipLevels;
+	
 };
 
 // Data that can change per material
@@ -126,10 +127,14 @@ PS_Output main(VertexToPixel input) : SV_TARGET
 	// Add the indirect to the direct
 	totalColor += fullIndirect;
 
+	// Balance indirect diff/spec
+	float3 balancedIndirectDiff = DiffuseEnergyConserve(indirectDiffuse, indirectSpecular, metal) * surfaceColor.rgb;
+
 	PS_Output output;
 	// Gamma correction
 	//output.color = float4(pow(totalColor, 1.0f / 2.2f), 1);
 	output.color = float4(totalColor, 1);
+	output.ambient = float4(balancedIndirectDiff, 1);
 	output.normals = float4(input.normal * 0.5f + 0.5f, 1);
 	output.depth = input.screenPosition.z;
 	return output;

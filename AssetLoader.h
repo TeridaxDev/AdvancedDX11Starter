@@ -45,6 +45,8 @@ public:
 	void LoadVertexShader(std::string path, bool useAssetPath = false);
 
 	void CreateSolidColorTexture(std::string textureName, int width, int height, DirectX::XMFLOAT4 color);
+	void CreateFloatTexture(std::string textureName, int width, int height, DirectX::XMFLOAT4* pixels);
+
 
 	Mesh* GetMesh(std::string name);
 	SimplePixelShader* GetPixelShader(std::string name);

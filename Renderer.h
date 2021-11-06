@@ -30,6 +30,8 @@ private:
 	int ssaoSamples;
 	float ssaoRadius;
 
+	DirectX::XMFLOAT3 ambientNonPBR;
+
 	//Alt Render Targets
 	Microsoft::WRL::ComPtr<ID3D11RenderTargetView> sceneColorsRTV;
 	Microsoft::WRL::ComPtr<ID3D11RenderTargetView> sceneNormalsRTV;
@@ -72,6 +74,7 @@ public:
 	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> GetSceneNormalsSRV();
 	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> GetSceneAmbientSRV();
 	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> GetSceneDepthSRV();
+	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> GetSSAO();
 
 };
 

@@ -15,6 +15,8 @@ Renderer::Renderer(Microsoft::WRL::ComPtr<ID3D11Device> device, Microsoft::WRL::
 	entities(entities), lights(lights)
 {
 
+	ambientNonPBR = XMFLOAT3(0.1f, 0.1f, 0.25f);
+
 	// Set up the ssao offsets (count must match shader!)
 	for (int i = 0; i < ARRAYSIZE(ssaoOffsets); i++)
 	{
@@ -76,6 +78,7 @@ void Renderer::Render(Camera* camera, int lightCount, SimpleVertexShader* lightV
 
 	// Background color for clearing
 	const float color[4] = { 0, 0, 0, 1 };
+	const float depth[4] = { 1, 0, 0, 0 };
 
 	// Clear the render target and depth buffer (erases what's on the screen)
 	//  - Do this ONCE PER FRAME
@@ -84,7 +87,9 @@ void Renderer::Render(Camera* camera, int lightCount, SimpleVertexShader* lightV
 	context->ClearRenderTargetView(sceneColorsRTV.Get(), color);
 	context->ClearRenderTargetView(sceneNormalsRTV.Get(), color);
 	context->ClearRenderTargetView(sceneAmbientRTV.Get(), color);
-	context->ClearRenderTargetView(sceneDepthRTV.Get(), color);
+	context->ClearRenderTargetView(sceneDepthRTV.Get(), depth);
+	context->ClearRenderTargetView(ssaoResultRTV.Get(), color);
+	context->ClearRenderTargetView(ssaoBlurRTV.Get(), color);
 	context->ClearDepthStencilView(
 		depthBufferDSV.Get(),
 		D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL,
@@ -113,6 +118,7 @@ void Renderer::Render(Camera* camera, int lightCount, SimpleVertexShader* lightV
 		ps->SetInt("LightCount", lightCount);
 		ps->SetFloat3("CameraPosition", camera->GetTransform()->GetPosition());
 		ps->SetInt("SpecIBLTotalMipLevels", sky->IBLGetMipLevels());
+		ps->SetFloat3("AmbientNonPBR", ambientNonPBR);
 		ps->CopyBufferData("perFrame");
 
 		ps->SetShaderResourceView("IrradianceIBLMap", sky->IBLGetIrradianceMap());
@@ -129,20 +135,66 @@ void Renderer::Render(Camera* camera, int lightCount, SimpleVertexShader* lightV
 	// Draw the sky
 	sky->Draw(camera);
 
-	//Re-enable Back Buffer
-	context->OMSetRenderTargets(1, backBufferRTV.GetAddressOf(), 0);
-
 	// Lastly, get the final color results to the screen!
 	Assets& assets = Assets::GetInstance();
 	SimpleVertexShader* vs = assets.GetVertexShader("FullscreenVS.cso");
-	SimplePixelShader* ps = assets.GetPixelShader("SimpleTexturePS.cso");
 	vs->SetShader();
+
+
+	// Set up ssao render pass
+	renderTargets[0] = ssaoResultRTV.Get();
+	renderTargets[1] = 0;
+	renderTargets[2] = 0;
+	renderTargets[3] = 0;
+	context->OMSetRenderTargets(4, renderTargets, 0);
+
+	SimplePixelShader* ssaoPS = assets.GetPixelShader("SsaoPS.cso");
+	ssaoPS->SetShader();
+
+	// Calculate the inverse of the camera matrices
+	XMFLOAT4X4 invView, invProj, view = camera->GetView(), proj = camera->GetProjection();
+	XMStoreFloat4x4(&invView, XMMatrixInverse(0, XMLoadFloat4x4(&view)));
+	XMStoreFloat4x4(&invProj, XMMatrixInverse(0, XMLoadFloat4x4(&proj)));
+	ssaoPS->SetMatrix4x4("invViewMatrix", invView);
+	ssaoPS->SetMatrix4x4("invProjMatrix", invProj);
+	ssaoPS->SetMatrix4x4("viewMatrix", view);
+	ssaoPS->SetMatrix4x4("projectionMatrix", proj);
+	ssaoPS->SetData("offsets", ssaoOffsets, sizeof(XMFLOAT4) * ARRAYSIZE(ssaoOffsets));
+	ssaoPS->SetFloat("ssaoRadius", ssaoRadius);
+	ssaoPS->SetInt("ssaoSamples", ssaoSamples);
+	ssaoPS->SetFloat2("randomTextureScreenScale", XMFLOAT2(windowWidth / 4.0f, windowHeight / 4.0f));
+	ssaoPS->CopyAllBufferData();
+
+	ssaoPS->SetShaderResourceView("Normals", sceneNormalsSRV);
+	ssaoPS->SetShaderResourceView("Depths", sceneDepthSRV);
+	ssaoPS->SetShaderResourceView("Random", assets.GetTexture("random"));
+
+	context->Draw(3, 0);
+
+
+	// Set up blur (assuming all other targets are null here)
+	renderTargets[0] = ssaoBlurRTV.Get();
+	context->OMSetRenderTargets(1, renderTargets, 0);
+
+	SimplePixelShader* ps = assets.GetPixelShader("SsaoBlurPS.cso");
 	ps->SetShader();
-	ps->SetShaderResourceView("Pixels", sceneColorsSRV);
-	// Note: not setting a sampler here for 2 reasons:
-	// - 1: We don't have a sampler created here in the renderer
-	// - 2: A null sampler just uses the default sampling options, which
-	//      are good enough for just plastering a texture on the screen
+	ps->SetShaderResourceView("SSAO", ssaoResultSRV);
+	ps->SetFloat2("pixelSize", XMFLOAT2(1.0f / windowWidth, 1.0f / windowHeight));
+	ps->CopyAllBufferData();
+	context->Draw(3, 0);
+
+
+	// Re-enable back buffer (assuming all other targets are null here)
+	renderTargets[0] = backBufferRTV.Get();
+	context->OMSetRenderTargets(1, renderTargets, 0);
+
+	ps = assets.GetPixelShader("SsaoCombinePS.cso");
+	ps->SetShader();
+	ps->SetShaderResourceView("SceneColorsNoAmbient", sceneColorsSRV);
+	ps->SetShaderResourceView("Ambient", sceneAmbientSRV);
+	ps->SetShaderResourceView("SSAOBlur", ssaoBlurSRV);
+	ps->SetFloat2("pixelSize", XMFLOAT2(1.0f / windowWidth, 1.0f / windowHeight));
+	ps->CopyAllBufferData();
 	context->Draw(3, 0);
 
 	// Draw ImGui
@@ -237,6 +289,11 @@ Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> Renderer::GetSceneAmbientSRV()
 Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> Renderer::GetSceneDepthSRV()
 {
 	return sceneDepthSRV;
+}
+
+Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> Renderer::GetSSAO()
+{
+	return ssaoResultSRV;
 }
 
 void Renderer::CreateGenericRenderTarget(unsigned int width, unsigned int height, Microsoft::WRL::ComPtr<ID3D11RenderTargetView>& rtv, Microsoft::WRL::ComPtr<ID3D11ShaderResourceView>& srv, DXGI_FORMAT colorFormat)

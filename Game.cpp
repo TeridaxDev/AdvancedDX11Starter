@@ -152,6 +152,16 @@ void Game::LoadAssetsAndCreateEntities()
 	assets.Initialize("..\\..\\Assets\\", device, context);
 	assets.LoadAllAssets();
 
+	// Create a random texture for SSAO
+	const int textureSize = 4;
+	const int totalPixels = textureSize * textureSize;
+	XMFLOAT4 randomPixels[totalPixels] = {};
+	for (int i = 0; i < totalPixels; i++)
+	{
+		XMVECTOR randomVec = XMVectorSet(RandomRange(-1, 1), RandomRange(-1, 1), 0, 0);
+		XMStoreFloat4(&randomPixels[i], XMVector3Normalize(randomVec));
+	}
+	assets.CreateFloatTexture("random", textureSize, textureSize, randomPixels);
 
 	// Describe and create our sampler state
 	D3D11_SAMPLER_DESC sampDesc = {};
@@ -592,11 +602,13 @@ void Game::Update(float deltaTime, float totalTime)
 
 	ImGui::Begin("Render Targets");
 
+	ImGui::Text("SSAO");
+	ImGui::Image(renderer->GetSSAO().Get(), ImVec2(500, 300));
 	ImGui::Text("Scene Color");
 	ImGui::Image(renderer->GetSceneColorsSRV().Get(), ImVec2(500, 300));
 	ImGui::Text("Scene Normals");
 	ImGui::Image(renderer->GetSceneNormalsSRV().Get(), ImVec2(500, 300));
-	ImGui::Text("Scene Ambient Occlusion");
+	ImGui::Text("Scene Ambient Color");
 	ImGui::Image(renderer->GetSceneAmbientSRV().Get(), ImVec2(500, 300));
 	ImGui::Text("Scene Depth");
 	ImGui::Image(renderer->GetSceneDepthSRV().Get(), ImVec2(500, 300));

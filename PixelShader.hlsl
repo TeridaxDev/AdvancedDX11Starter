@@ -25,6 +25,10 @@ cbuffer perFrame : register(b1)
 
 	// Needed for specular (reflection) calculation
 	float3 CameraPosition;
+	
+	//Ambient Color for Environment
+	float3 AmbientNonPBR;
+	
 };
 
 
@@ -96,11 +100,16 @@ PS_Output main(VertexToPixel input) : SV_TARGET
 			break;
 		}
 	}
+	
+	
+	// Handle ambient
+	float3 ambient = surfaceColor.rgb * AmbientNonPBR;
 
 	PS_Output output;
 	// Gamma correction
 	//output.color = float4(pow(totalColor, 1.0f / 2.2f), 1);
 	output.color = float4(totalColor, 1);
+	output.ambient = float4(ambient, 1);
 	output.normals = float4(input.normal * 0.5f + 0.5f, 1);
 	output.depth = input.screenPosition.z;
 	return output;

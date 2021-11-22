@@ -496,8 +496,8 @@ void Game::LoadAssetsAndCreateEntities()
 	entities[0]->GetTransform()->AddChild(entities[1]->GetTransform(), true);
 
 
-	emitters.push_back(new Emitter(20, 1, 0.5f, device, context, assets.GetVertexShader("ParticleVS.cso"), assets.GetPixelShader("ParticlePS.cso"),
-		assets.GetTexture("Textures\\Particles\\PNG (Black background)\\scratch_01.png")));
+	emitters.push_back(new Emitter(200, 3, 2, device, context, assets.GetVertexShader("ParticleVS.cso"), assets.GetPixelShader("ParticlePS.cso"),
+		assets.GetTexture("Textures\\Particles\\PNG (Black background)\\smoke_01.png")));
 
 }
 

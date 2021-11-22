@@ -98,7 +98,7 @@ void RecvFromLoop()
                 {
                     Projectile* p = new Projectile();
 
-                    Helpers::ReadProjectileMovementData(p, &sendbuffer[0] + 4);
+                    Helpers::ReadProjectileMovementData(p, &buffer[0] + 4);
 
                     projectiles.push_back(p);
 
@@ -174,7 +174,7 @@ void GameLoop()
         if (FPS.count() >= 1)
         {
             fpsTimer = steady_clock::now();
-            float deltaTime = duration_cast<ms>(FPS).count();
+            float deltaTime = duration_cast<ms>(FPS).count() / 1000;
             //std::cout << "LastFrame: " << duration_cast<ms>(FPS).count() << "ms  |  FPS: " << FPS.count() * 60 << std::endl;
         
             //Update every player

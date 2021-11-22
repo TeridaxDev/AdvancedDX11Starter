@@ -256,6 +256,7 @@ void NetworkManager::Update(float dt, Player* local, std::vector<Projectile*>* p
 		{
 			Projectile* newProjectile = new Projectile(playerMesh, playerMat, 5);
 			entities->push_back(newProjectile);
+			projectiles->push_back(newProjectile);
 			newProjectile->GetTransform()->SetScale(0.2f, 0.2f, 0.2f);
 		}
 		else if (*msgType == 10 && state == NetworkState::Connected) //Remote Player Update

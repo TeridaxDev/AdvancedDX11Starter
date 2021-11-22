@@ -9,10 +9,10 @@
 
 using namespace DirectX;
 
-Renderer::Renderer(Microsoft::WRL::ComPtr<ID3D11Device> device, Microsoft::WRL::ComPtr<ID3D11DeviceContext> context, Microsoft::WRL::ComPtr<IDXGISwapChain> swapChain, Microsoft::WRL::ComPtr<ID3D11RenderTargetView> backBufferRTV, Microsoft::WRL::ComPtr<ID3D11DepthStencilView> depthBufferDSV, unsigned int windowWidth, unsigned int windowHeight, Sky* sky, std::vector<GameEntity*>& entities, std::vector<Light>& lights)
+Renderer::Renderer(Microsoft::WRL::ComPtr<ID3D11Device> device, Microsoft::WRL::ComPtr<ID3D11DeviceContext> context, Microsoft::WRL::ComPtr<IDXGISwapChain> swapChain, Microsoft::WRL::ComPtr<ID3D11RenderTargetView> backBufferRTV, Microsoft::WRL::ComPtr<ID3D11DepthStencilView> depthBufferDSV, unsigned int windowWidth, unsigned int windowHeight, Sky* sky, std::vector<GameEntity*>& entities, std::vector<Light>& lights, std::vector<Emitter*>& emitters)
 	: device(device), context(context), swapChain(swapChain), backBufferRTV(backBufferRTV), depthBufferDSV(depthBufferDSV),
 	windowWidth(windowWidth), windowHeight(windowHeight), sky(sky),
-	entities(entities), lights(lights)
+	entities(entities), lights(lights), emitters(emitters)
 {
 
 	ambientNonPBR = XMFLOAT3(0.1f, 0.1f, 0.25f);
@@ -41,6 +41,23 @@ Renderer::Renderer(Microsoft::WRL::ComPtr<ID3D11Device> device, Microsoft::WRL::
 		XMStoreFloat4(&ssaoOffsets[i], v * scaleVector);
 
 	}
+
+	D3D11_DEPTH_STENCIL_DESC particleDepthDesc = {};
+	particleDepthDesc.DepthEnable = true;
+	particleDepthDesc.DepthWriteMask = D3D11_DEPTH_WRITE_MASK_ZERO;
+	particleDepthDesc.DepthFunc = D3D11_COMPARISON_LESS;
+	device->CreateDepthStencilState(&particleDepthDesc, particleDepthState.GetAddressOf());
+
+	D3D11_BLEND_DESC additiveBlendDesc = {};
+	additiveBlendDesc.RenderTarget[0].BlendEnable = true;
+	additiveBlendDesc.RenderTarget[0].BlendOp = D3D11_BLEND_OP_ADD;
+	additiveBlendDesc.RenderTarget[0].BlendOpAlpha = D3D11_BLEND_OP_ADD;
+	additiveBlendDesc.RenderTarget[0].SrcBlend = D3D11_BLEND_ONE;
+	additiveBlendDesc.RenderTarget[0].DestBlend = D3D11_BLEND_ONE;
+	additiveBlendDesc.RenderTarget[0].SrcBlendAlpha = D3D11_BLEND_ONE;
+	additiveBlendDesc.RenderTarget[0].DestBlendAlpha = D3D11_BLEND_ONE;
+	additiveBlendDesc.RenderTarget[0].RenderTargetWriteMask = D3D11_COLOR_WRITE_ENABLE_ALL;
+	device->CreateBlendState(&additiveBlendDesc, particleBlendAdditive.GetAddressOf());
 
 	CreateGenericRenderTarget(windowWidth, windowHeight, sceneColorsRTV, sceneColorsSRV);
 	CreateGenericRenderTarget(windowWidth, windowHeight, sceneNormalsRTV, sceneNormalsSRV);
@@ -76,7 +93,7 @@ void Renderer::PostResize(unsigned int windowWidth, unsigned int windowHeight, M
 
 }
 
-void Renderer::Render(Camera* camera, int lightCount, SimpleVertexShader* lightVS, SimplePixelShader* lightPS, Mesh* lightMesh)
+void Renderer::Render(Camera* camera, float totalTime, int lightCount, SimpleVertexShader* lightVS, SimplePixelShader* lightPS, Mesh* lightMesh)
 {
 
 	// Background color for clearing
@@ -201,6 +218,21 @@ void Renderer::Render(Camera* camera, int lightCount, SimpleVertexShader* lightV
 	ps->SetFloat2("pixelSize", XMFLOAT2(1.0f / windowWidth, 1.0f / windowHeight));
 	ps->CopyAllBufferData();
 	context->Draw(3, 0);
+
+	//Particles!
+	renderTargets[0] = backBufferRTV.Get();
+	context->OMSetRenderTargets(1, renderTargets, depthBufferDSV.Get());
+
+	context->OMSetBlendState(particleBlendAdditive.Get(), 0, 0xFFFFFFFF);
+	context->OMSetDepthStencilState(particleDepthState.Get(), 0);
+
+	for (auto& e : emitters)
+	{
+		e->Draw(camera, totalTime);
+	}
+
+	context->OMSetBlendState(0, 0, 0xFFFFFFFF);
+	context->OMSetDepthStencilState(0, 0);
 
 	// Draw ImGui
 	ImGui::Render();

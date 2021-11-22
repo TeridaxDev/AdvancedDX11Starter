@@ -6,6 +6,7 @@
 #include "GameEntity.h"
 #include "Sky.h"
 #include "Lights.h"
+#include "Emitter.h"
 
 class Renderer
 {
@@ -24,6 +25,7 @@ private:
 
 	const std::vector<GameEntity*>& entities;
 	const std::vector<Light>& lights;
+	const std::vector<Emitter*>& emitters;
 
 	// SSAO variables
 	DirectX::XMFLOAT4 ssaoOffsets[64];
@@ -45,6 +47,8 @@ private:
 	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> sceneDepthSRV;
 	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> ssaoResultSRV;
 	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> ssaoBlurSRV;
+	Microsoft::WRL::ComPtr<ID3D11BlendState> particleBlendAdditive;
+	Microsoft::WRL::ComPtr<ID3D11DepthStencilState> particleDepthState;
 
 	void CreateGenericRenderTarget(unsigned int width, unsigned int height, Microsoft::WRL::ComPtr<ID3D11RenderTargetView>& rtv, Microsoft::WRL::ComPtr<ID3D11ShaderResourceView>& srv, DXGI_FORMAT colorFormat = DXGI_FORMAT_R8G8B8A8_UNORM);
 
@@ -60,13 +64,14 @@ public:
 		unsigned int windowHeight,
 		Sky* sky,
 		std::vector<GameEntity*>& entities,
-		std::vector<Light>& lights);
+		std::vector<Light>& lights,
+		std::vector<Emitter*>& emitters);
 
 
 
 	void PostResize(unsigned int windowWidth, unsigned int windowHeight, Microsoft::WRL::ComPtr<ID3D11RenderTargetView> backBufferRTV, Microsoft::WRL::ComPtr<ID3D11DepthStencilView> depthBufferDSV);
 
-	void Render(Camera* camera, int lightCount, SimpleVertexShader* lightVS, SimplePixelShader* lightPS, Mesh* lightMesh);
+	void Render(Camera* camera, float totalTime, int lightCount, SimpleVertexShader* lightVS, SimplePixelShader* lightPS, Mesh* lightMesh);
 
 	void DrawPointLights(Camera* camera, int lightCount, SimpleVertexShader* lightVS, SimplePixelShader* lightPS, Mesh* lightMesh);
 

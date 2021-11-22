@@ -73,6 +73,7 @@ Game::~Game()
 	// Clean up our other resources
 	for (auto& m : materials) delete m;
 	for (auto& e : entities) delete e;
+	for (auto& e : emitters) delete e;
 
 	// Delete any one-off objects
 	delete sky;
@@ -136,7 +137,7 @@ void Game::Init()
 	ImGui_ImplWin32_Init(hWnd);
 	ImGui_ImplDX11_Init(device.Get(), context.Get());
 
-	renderer = new Renderer(device, context, swapChain, backBufferRTV, depthStencilView, width, height, sky, entities, lights);
+	renderer = new Renderer(device, context, swapChain, backBufferRTV, depthStencilView, width, height, sky, entities, lights, emitters);
 	netManager = new NetworkManager(&entities);
 
 }
@@ -493,6 +494,11 @@ void Game::LoadAssetsAndCreateEntities()
 
 	// Transform test =====================================
 	entities[0]->GetTransform()->AddChild(entities[1]->GetTransform(), true);
+
+
+	emitters.push_back(new Emitter(20, 1, 0.5f, device, context, assets.GetVertexShader("ParticleVS.cso"), assets.GetPixelShader("ParticlePS.cso"),
+		assets.GetTexture("Textures\\Particles\\PNG (Black background)\\scratch_01.png")));
+
 }
 
 
@@ -715,6 +721,11 @@ void Game::Update(float deltaTime, float totalTime)
 		}
 	}
 
+	for (int i = 0; i < emitters.size(); i++)
+	{
+		emitters[i]->Update(deltaTime, totalTime);
+	}
+
 	netManager->Update(deltaTime, localPlayer, &projectiles);
 
 	// Check individual input
@@ -728,7 +739,7 @@ void Game::Update(float deltaTime, float totalTime)
 // --------------------------------------------------------
 void Game::Draw(float deltaTime, float totalTime)
 {
-	renderer->Render(camera, lightCount, lightVS, lightPS, lightMesh);
+	renderer->Render(camera, totalTime, lightCount, lightVS, lightPS, lightMesh);
 }
 
 

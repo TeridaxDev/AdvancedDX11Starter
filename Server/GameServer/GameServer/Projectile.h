@@ -20,7 +20,7 @@ public:
 	float lifespan;
 	float age;
 
-	bool dead = false;
+	bool dead = true;
 
 	void Update(float dt);
 

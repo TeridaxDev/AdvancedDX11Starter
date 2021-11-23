@@ -495,6 +495,17 @@ void Game::LoadAssetsAndCreateEntities()
 	// Transform test =====================================
 	entities[0]->GetTransform()->AddChild(entities[1]->GetTransform(), true);
 
+	//Projectiles
+	for (int i = 0; i < MAX_PROJECTILES; i++)
+	{
+		Projectile* bullet = new Projectile(Assets::GetInstance().GetMesh("Models\\sphere.obj"), materials[0], 5);
+		entities.push_back(bullet);
+		projectiles[i] = bullet;
+		bullet->dead = true;
+		Transform* tf = bullet->GetTransform();
+		tf->SetScale(0.2f, 0.2f, 0.2f);
+		tf->SetPosition(0, -5000, 0);
+	}
 
 	emitters.push_back(new Emitter(200, 50, 2, device, context, assets.GetVertexShader("ParticleVS.cso"), assets.GetPixelShader("ParticlePS.cso"),
 		assets.GetTexture("Textures\\Particles\\PNG (Black background)\\smoke_01.png")));
@@ -688,36 +699,53 @@ void Game::Update(float deltaTime, float totalTime)
 
 	Input& input = Input::GetInstance();
 
+	netManager->Update(deltaTime, localPlayer, projectiles);
+
 	// Update the camera
 	camera->Update(deltaTime);
 	localPlayer->Update(deltaTime);
 
 	if (input.MouseLeftPress())
 	{
-		Projectile* bullet = new Projectile(Assets::GetInstance().GetMesh("Models\\sphere.obj"), materials[0], 5);
-		projectiles.push_back(bullet);
-		entities.push_back(bullet);
-		Transform* tf = bullet->GetTransform();
-		tf->SetScale(0.2f, 0.2f, 0.2f);
-		Transform* camtf = localPlayer->GetCamera()->GetTransform();
-		tf->SetPosition(camtf->GetPosition().x + localPlayer->velocityX * deltaTime, camtf->GetPosition().y + localPlayer->velocityY * deltaTime, camtf->GetPosition().z + localPlayer->velocityZ * deltaTime);
-		tf->SetRotation(camtf->GetPitchYawRoll().x, camtf->GetPitchYawRoll().y, camtf->GetPitchYawRoll().z);
-		bullet->SetVelocity(0, 5, 20, -9.8f);
-		if(netManager->GetNetworkState() == NetworkState::Connected)
-			netManager->AddNetworkProjectile(bullet);
+		Projectile* bullet = nullptr;
+		int index;
+
+		//Find the first dead projectile
+		for (int i = 0; i < MAX_PROJECTILES; i++)
+		{
+			if (projectiles[i]->dead) 
+			{
+				bullet = projectiles[i];
+				index = i;
+				break;
+			}
+		}
+		if (bullet != nullptr)
+		{
+			bullet->dead = false;
+			bullet->age = 0;
+			bullet->lifespan = 5;
+			Transform* tf = bullet->GetTransform();
+			Transform* camtf = localPlayer->GetCamera()->GetTransform();
+			tf->SetPosition(camtf->GetPosition().x + localPlayer->velocityX * deltaTime, camtf->GetPosition().y + localPlayer->velocityY * deltaTime, camtf->GetPosition().z + localPlayer->velocityZ * deltaTime);
+			tf->SetRotation(camtf->GetPitchYawRoll().x, camtf->GetPitchYawRoll().y, camtf->GetPitchYawRoll().z);
+			bullet->SetVelocity(0, 5, 20, -9.8f);
+			std::cout << index << std::endl;
+			if (netManager->GetNetworkState() == NetworkState::Connected)
+				netManager->AddNetworkProjectile(bullet, index);
+		}
 	}
 
-	for (int i = 0; i < projectiles.size(); i++)
+	for (int i = 0; i < MAX_PROJECTILES; i++)
 	{
 		Projectile* p = projectiles[i];
-		p->Update(deltaTime);
-		if (p->dead)
+		if (!p->dead)
 		{
-			auto it = find(entities.begin(), entities.end(), p);
-			auto it2 = find(projectiles.begin(), projectiles.end(), p);
-			entities.erase(it);
-			projectiles.erase(it2);
-			delete p;
+			p->Update(deltaTime);
+			if (p->dead)
+			{
+				p->GetTransform()->SetPosition(0, -5000, 0);
+			}
 		}
 	}
 
@@ -726,7 +754,6 @@ void Game::Update(float deltaTime, float totalTime)
 		emitters[i]->Update(deltaTime, totalTime);
 	}
 
-	netManager->Update(deltaTime, localPlayer, &projectiles);
 
 	// Check individual input
 	if (input.KeyDown(VK_ESCAPE)) Quit();

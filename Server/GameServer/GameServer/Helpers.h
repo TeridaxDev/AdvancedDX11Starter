@@ -104,6 +104,8 @@ public:
 		projectile->lifespan = *(bff + 10);
 		projectile->age = *(bff + 11);
 
+		projectile->dead = false;
+
 	}
 
 };

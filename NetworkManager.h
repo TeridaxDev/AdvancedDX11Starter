@@ -7,6 +7,8 @@
 #include "Projectile.h"
 #include "Network.h"
 
+#define MAX_PROJECTILES 6
+
 enum class NetworkState
 {
 	Offline,
@@ -65,9 +67,9 @@ public:
 	void CopyProjectileMovementData(Projectile* projectile, char* bff);
 	void ReadProjectileMovementData(Projectile* projectile, char* buffer);
 
-	void AddNetworkProjectile(Projectile* projectile);
+	void AddNetworkProjectile(Projectile* projectile, int index);
 
-	void Update(float dt, Player* local, std::vector<Projectile*>* projectiles);
+	void Update(float dt, Player* local, Projectile** projectiles);
 
 };
 

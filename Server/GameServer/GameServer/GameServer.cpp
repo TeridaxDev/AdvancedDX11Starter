@@ -14,6 +14,8 @@
 
 using namespace std::chrono;
 
+#define MAX_PROJECTILES 6
+
 using frame = duration<int32_t, std::ratio<1, 60>>;
 using ms = duration<float, std::milli>;
 
@@ -27,8 +29,7 @@ char sendbuffer[500];
 bool newData;
 
 std::vector<Player*> players;
-std::vector<Projectile*> projectiles;
-
+Projectile projectiles[MAX_PROJECTILES];
 
 
 
@@ -96,22 +97,11 @@ void RecvFromLoop()
                 }
                 else if (*msgType == 3) //New projectile
                 {
-                    Projectile* p = new Projectile();
+                    int* index = (int*)(&buffer[0] + 4);
 
-                    Helpers::ReadProjectileMovementData(p, &buffer[0] + 4);
-
-                    projectiles.push_back(p);
-
-                    //Tell every other player about it
-                    for (size_t i = 0; i < players.size(); i++)
-                    {
-                        //Send a response
-                        std::fill_n(sendbuffer, 500, 0);
-
-                        unsigned int data = 3;
-                        std::memcpy(&sendbuffer, &data, 4);
-                        Socket.SendTo(players[i]->client, sendbuffer, 500);
-                    }
+                    Projectile* p = &projectiles[*index];
+                    std::cout << *index << std::endl;
+                    Helpers::ReadProjectileMovementData(p, &buffer[0] + 8);
 
                     newData = false;
 
@@ -186,15 +176,17 @@ void GameLoop()
             }
 
             //Update every projectile
-            for (int i = 0; i < projectiles.size(); i++)
+            for (int i = 0; i < MAX_PROJECTILES; i++)
             {
-                Projectile* p = projectiles[i];
-                p->Update(deltaTime);
-                if (p->dead)
+                Projectile* p = &(projectiles[i]);
+                if (!p->dead)
                 {
-                    auto it2 = find(projectiles.begin(), projectiles.end(), p);
-                    projectiles.erase(it2);
-                    delete p;
+                    p->Update(deltaTime);
+                    if (p->dead)
+                    {
+                        //Do nothing I guess?? lmao
+                        p->GetTransform()->SetPosition(0, -5000, 0);
+                    }
                 }
             }
         
@@ -208,9 +200,9 @@ void GameLoop()
             {
                 Helpers::CopyPlayerMovementData(players[i], &sendbuffer[0] + (i * 36) + 4);
             }
-            for (size_t i = 0; i < projectiles.size(); i++)
+            for (size_t i = 0; i < MAX_PROJECTILES; i++)
             {
-                Helpers::CopyProjectileMovementData(projectiles[i], &sendbuffer[0] + (players.size() * 36) + (i * 44) + 4);
+                Helpers::CopyProjectileMovementData(&projectiles[i], &sendbuffer[0] + (players.size() * 36) + (i * 48) + 4);
             }
             for (size_t i = 0; i < players.size(); i++)
             {

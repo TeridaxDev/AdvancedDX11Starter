@@ -201,23 +201,25 @@ void NetworkManager::ReadProjectileMovementData(Projectile* projectile, char* bu
 	projectile->age = age;
 }
 
-void NetworkManager::AddNetworkProjectile(Projectile* projectile)
+void NetworkManager::AddNetworkProjectile(Projectile* projectile, int index)
 {
 	//Clear buffers
 	std::fill_n(sendBuffer, 500, 0);
 
 	unsigned int msgType = 3;
+	int ind = index;
 
 	std::memcpy(&sendBuffer, &msgType, 4);
+	std::memcpy(&sendBuffer[0] + 4, &ind, 4);
 
 	//Send initial position and velocity
-	CopyProjectileMovementData(projectile, &sendBuffer[0] + 4);
+	CopyProjectileMovementData(projectile, &sendBuffer[0] + 8);
 
 	socket.SendTo(IP, PORT, sendBuffer, 500);
 
 }
 
-void NetworkManager::Update(float dt, Player* local, std::vector<Projectile*>* projectiles)
+void NetworkManager::Update(float dt, Player* local, Projectile** projectiles)
 {
 
 	if (newData)
@@ -252,13 +254,13 @@ void NetworkManager::Update(float dt, Player* local, std::vector<Projectile*>* p
 			remotePlayers.push_back(newPlayer);
 			entities->push_back(newPlayer);
 		}
-		else if (*msgType == 3 && state == NetworkState::Connected) //New projectile
-		{
-			Projectile* newProjectile = new Projectile(playerMesh, playerMat, 5);
-			entities->push_back(newProjectile);
-			projectiles->push_back(newProjectile);
-			newProjectile->GetTransform()->SetScale(0.2f, 0.2f, 0.2f);
-		}
+		//else if (*msgType == 3 && state == NetworkState::Connected) //New projectile
+		//{
+		//	return; // Ignore call for now
+		//	Projectile* newProjectile = new Projectile(playerMesh, playerMat, 5);
+		//	entities->push_back(newProjectile);
+		//	newProjectile->GetTransform()->SetScale(0.2f, 0.2f, 0.2f);
+		//}
 		else if (*msgType == 10 && state == NetworkState::Connected) //Remote Player Update
 		{
 			for (size_t i = 0; i < remotePlayers.size(); i++)
@@ -267,9 +269,11 @@ void NetworkManager::Update(float dt, Player* local, std::vector<Projectile*>* p
 
 				ReadPlayerMovementData(remotePlayers[i], &recvBuffer[0] + 4 + (36 * i));
 			}
-			for (size_t i = 0; i < projectiles->size(); i++)
+			for (size_t i = 0; i < MAX_PROJECTILES; i++)
 			{
-				ReadProjectileMovementData((*projectiles)[i], &recvBuffer[0] + 4 + (36 * remotePlayers.size()) + (44 * i));
+				ReadProjectileMovementData(*(projectiles + i), &recvBuffer[0] + 4 + (36 * remotePlayers.size()) + (48 * i));
+				Projectile* p = *(projectiles + i);
+				if (p->dead && p->age < p->lifespan) p->dead = false; //Fix for when the server resurrects a projectile and doesn't tell us
 			}
 		}
 

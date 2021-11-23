@@ -45,7 +45,7 @@ private:
 	std::vector<Material*> materials;
 	std::vector<GameEntity*>* currentScene;
 	std::vector<GameEntity*> entities;
-	std::vector<Projectile*> projectiles;
+	Projectile* projectiles[MAX_PROJECTILES];
 	Camera* camera;
 	Player* localPlayer;
 

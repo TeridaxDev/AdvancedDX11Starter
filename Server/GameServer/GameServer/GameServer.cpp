@@ -113,6 +113,8 @@ void RecvFromLoop()
                         Socket.SendTo(players[i]->client, sendbuffer, 500);
                     }
 
+                    newData = false;
+
                 }
                 else if(*msgType == 10) //Player update
                 { 

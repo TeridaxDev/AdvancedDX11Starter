@@ -1,20 +1,20 @@
 #pragma once
+
+#include "../../../Transform.h"
+
 class Projectile
 {
+private:
+
+	Transform transform;
 
 public:
 
-	float positionX;
-	float positionY;
-	float positionZ;
+	Transform* GetTransform() { return &transform; }
 
 	float velocityX;
 	float velocityY;
 	float velocityZ;
-
-	float pitch;
-	float yaw;
-	float roll;
 
 	float gravity;
 	float lifespan;

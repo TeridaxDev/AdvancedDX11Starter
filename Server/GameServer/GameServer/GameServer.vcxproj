@@ -139,12 +139,14 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="..\..\..\Transform.cpp" />
     <ClCompile Include="GameServer.cpp" />
     <ClCompile Include="Player.cpp" />
     <ClCompile Include="Projectile.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\..\Network.h" />
+    <ClInclude Include="..\..\..\Transform.h" />
     <ClInclude Include="Helpers.h" />
     <ClInclude Include="Player.h" />
     <ClInclude Include="Projectile.h" />

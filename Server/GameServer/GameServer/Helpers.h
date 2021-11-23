@@ -45,9 +45,9 @@ public:
 	//Takes 40 bytes
 	static void CopyProjectileMovementData(Projectile* projectile, char* bff)
 	{
-		float x = projectile->positionX;
-		float y = projectile->positionY;
-		float z = projectile->positionZ;
+		float x = projectile->GetTransform()->GetPosition().x;
+		float y = projectile->GetTransform()->GetPosition().y;
+		float z = projectile->GetTransform()->GetPosition().z;
 
 		//Position x/y/z
 		std::memcpy(bff, &x, 4);
@@ -61,9 +61,9 @@ public:
 
 		//Rotation pitch/yaw/roll
 
-		float pitch = projectile->pitch;
-		float yaw = projectile->yaw;
-		float roll = projectile->roll;
+		float pitch = projectile->GetTransform()->GetPitchYawRoll().x;
+		float yaw = projectile->GetTransform()->GetPitchYawRoll().y;
+		float roll = projectile->GetTransform()->GetPitchYawRoll().z;
 		float gravity = projectile->gravity;
 
 		std::memcpy(bff + 24, &pitch, 4);
@@ -83,17 +83,22 @@ public:
 	static void ReadProjectileMovementData(Projectile* projectile, char* buffer)
 	{
 		float* bff = (float*)buffer;
-		projectile->positionX = *bff;
-		projectile->positionY = *(bff + 1);
-		projectile->positionZ = *(bff + 2);
+
+		float x, y, z, pitch, yaw, roll;
+
+		x = *bff;
+		y = *(bff + 1);
+		z = *(bff + 2);
+		projectile->GetTransform()->SetPosition(x, y, z);
 
 		projectile->velocityX = *(bff + 3);
 		projectile->velocityY = *(bff + 4);
 		projectile->velocityZ = *(bff + 5);
 
-		projectile->pitch = *(bff + 6);
-		projectile->yaw = *(bff + 7);
-		projectile->roll = *(bff + 8);
+		pitch = *(bff + 6);
+		yaw = *(bff + 7);
+		roll = *(bff + 8);
+		projectile->GetTransform()->SetRotation(pitch, yaw, roll);
 
 		projectile->gravity = *(bff + 9);
 		projectile->lifespan = *(bff + 10);

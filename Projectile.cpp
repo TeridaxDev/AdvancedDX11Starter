@@ -29,4 +29,6 @@ void Projectile::Update(float dt)
 	velocityY += gravity * dt;
 	transform.MoveRelative(velocityX * dt, velocityY * dt, velocityZ * dt);
 
+	if (transform.GetPosition().y <= -6) dead = true;
+
 }

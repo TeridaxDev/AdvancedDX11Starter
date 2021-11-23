@@ -100,7 +100,6 @@ void RecvFromLoop()
                     int* index = (int*)(&buffer[0] + 4);
 
                     Projectile* p = &projectiles[*index];
-                    std::cout << *index << std::endl;
                     Helpers::ReadProjectileMovementData(p, &buffer[0] + 8);
 
                     newData = false;
@@ -223,6 +222,11 @@ int main()
 
         std::thread gameLoop = std::thread(&GameLoop);
         std::thread recvLoop = std::thread(&RecvFromLoop);
+
+        for (int i = 0; i < MAX_PROJECTILES; i++)
+        {
+            projectiles[i].GetTransform()->SetPosition(0, -5000, 0);
+        }
 
         std::cout << "Server online. Port number " << PORT << std::endl;
 

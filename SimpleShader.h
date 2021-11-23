@@ -31,8 +31,9 @@ struct SimpleShaderVariable
 struct SimpleConstantBuffer
 {
 	std::string Name;
-	unsigned int Size;
-	unsigned int BindIndex;
+	D3D_CBUFFER_TYPE Type = D3D_CBUFFER_TYPE::D3D11_CT_CBUFFER;
+	unsigned int Size = 0;
+	unsigned int BindIndex = 0;
 	Microsoft::WRL::ComPtr<ID3D11Buffer> ConstantBuffer = 0;
 	unsigned char* LocalDataBuffer = 0;
 	std::vector<SimpleShaderVariable> Variables;
@@ -99,11 +100,11 @@ public:
 
 	// Getting data about variables and resources
 	const SimpleShaderVariable* GetVariableInfo(std::string name);
-	
+
 	const SimpleSRV* GetShaderResourceViewInfo(std::string name);
 	const SimpleSRV* GetShaderResourceViewInfo(unsigned int index);
 	size_t GetShaderResourceViewCount() { return textureTable.size(); }
-	
+
 	const SimpleSampler* GetSamplerInfo(std::string name);
 	const SimpleSampler* GetSamplerInfo(unsigned int index);
 	size_t GetSamplerCount() { return samplerTable.size(); }
@@ -113,7 +114,7 @@ public:
 	unsigned int GetBufferSize(unsigned int index);
 	const SimpleConstantBuffer* GetBufferInfo(std::string name);
 	const SimpleConstantBuffer* GetBufferInfo(unsigned int index);
-	
+
 	// Misc getters
 	Microsoft::WRL::ComPtr<ID3DBlob> GetShaderBlob() { return shaderBlob; }
 
@@ -122,7 +123,7 @@ public:
 	static bool ReportWarnings;
 
 protected:
-	
+
 	bool shaderValid;
 	Microsoft::WRL::ComPtr<ID3DBlob> shaderBlob;
 	Microsoft::WRL::ComPtr<ID3D11Device> device;
@@ -130,9 +131,9 @@ protected:
 
 	// Resource counts
 	unsigned int constantBufferCount;
-	
+
 	// Maps for variables and buffers
-	SimpleConstantBuffer*		constantBuffers; // For index-based lookup
+	SimpleConstantBuffer* constantBuffers; // For index-based lookup
 	std::vector<SimpleSRV*>		shaderResourceViews;
 	std::vector<SimpleSampler*>	samplerStates;
 	std::unordered_map<std::string, SimpleConstantBuffer*> cbTable;
@@ -170,8 +171,8 @@ protected:
 class SimpleVertexShader : public ISimpleShader
 {
 public:
-	SimpleVertexShader( Microsoft::WRL::ComPtr<ID3D11Device> device,  Microsoft::WRL::ComPtr<ID3D11DeviceContext> context, LPCWSTR shaderFile);
-	SimpleVertexShader( Microsoft::WRL::ComPtr<ID3D11Device> device,  Microsoft::WRL::ComPtr<ID3D11DeviceContext> context, LPCWSTR shaderFile, Microsoft::WRL::ComPtr<ID3D11InputLayout> inputLayout, bool perInstanceCompatible);
+	SimpleVertexShader(Microsoft::WRL::ComPtr<ID3D11Device> device, Microsoft::WRL::ComPtr<ID3D11DeviceContext> context, LPCWSTR shaderFile);
+	SimpleVertexShader(Microsoft::WRL::ComPtr<ID3D11Device> device, Microsoft::WRL::ComPtr<ID3D11DeviceContext> context, LPCWSTR shaderFile, Microsoft::WRL::ComPtr<ID3D11InputLayout> inputLayout, bool perInstanceCompatible);
 	~SimpleVertexShader();
 	Microsoft::WRL::ComPtr<ID3D11VertexShader> GetDirectXShader() { return shader; }
 	Microsoft::WRL::ComPtr<ID3D11InputLayout> GetInputLayout() { return inputLayout; }
@@ -182,8 +183,8 @@ public:
 
 protected:
 	bool perInstanceCompatible;
-	 Microsoft::WRL::ComPtr<ID3D11InputLayout> inputLayout;
-	 Microsoft::WRL::ComPtr<ID3D11VertexShader> shader;
+	Microsoft::WRL::ComPtr<ID3D11InputLayout> inputLayout;
+	Microsoft::WRL::ComPtr<ID3D11VertexShader> shader;
 	bool CreateShader(Microsoft::WRL::ComPtr<ID3DBlob> shaderBlob);
 	void SetShaderAndCBs();
 	void CleanUp();
@@ -216,7 +217,7 @@ protected:
 class SimpleDomainShader : public ISimpleShader
 {
 public:
-	SimpleDomainShader(Microsoft::WRL::ComPtr<ID3D11Device> device,  Microsoft::WRL::ComPtr<ID3D11DeviceContext> context, LPCWSTR shaderFile);
+	SimpleDomainShader(Microsoft::WRL::ComPtr<ID3D11Device> device, Microsoft::WRL::ComPtr<ID3D11DeviceContext> context, LPCWSTR shaderFile);
 	~SimpleDomainShader();
 	Microsoft::WRL::ComPtr<ID3D11DomainShader> GetDirectXShader() { return shader; }
 
@@ -236,7 +237,7 @@ protected:
 class SimpleHullShader : public ISimpleShader
 {
 public:
-	SimpleHullShader(Microsoft::WRL::ComPtr<ID3D11Device> device,  Microsoft::WRL::ComPtr<ID3D11DeviceContext> context, LPCWSTR shaderFile);
+	SimpleHullShader(Microsoft::WRL::ComPtr<ID3D11Device> device, Microsoft::WRL::ComPtr<ID3D11DeviceContext> context, LPCWSTR shaderFile);
 	~SimpleHullShader();
 	Microsoft::WRL::ComPtr<ID3D11HullShader> GetDirectXShader() { return shader; }
 
@@ -256,7 +257,7 @@ protected:
 class SimpleGeometryShader : public ISimpleShader
 {
 public:
-	SimpleGeometryShader(Microsoft::WRL::ComPtr<ID3D11Device> device,  Microsoft::WRL::ComPtr<ID3D11DeviceContext> context, LPCWSTR shaderFile, bool useStreamOut = 0, bool allowStreamOutRasterization = 0);
+	SimpleGeometryShader(Microsoft::WRL::ComPtr<ID3D11Device> device, Microsoft::WRL::ComPtr<ID3D11DeviceContext> context, LPCWSTR shaderFile, bool useStreamOut = 0, bool allowStreamOutRasterization = 0);
 	~SimpleGeometryShader();
 	Microsoft::WRL::ComPtr<ID3D11GeometryShader> GetDirectXShader() { return shader; }
 
@@ -292,7 +293,7 @@ protected:
 class SimpleComputeShader : public ISimpleShader
 {
 public:
-	SimpleComputeShader(Microsoft::WRL::ComPtr<ID3D11Device> device,  Microsoft::WRL::ComPtr<ID3D11DeviceContext> context, LPCWSTR shaderFile);
+	SimpleComputeShader(Microsoft::WRL::ComPtr<ID3D11Device> device, Microsoft::WRL::ComPtr<ID3D11DeviceContext> context, LPCWSTR shaderFile);
 	~SimpleComputeShader();
 	Microsoft::WRL::ComPtr<ID3D11ComputeShader> GetDirectXShader() { return shader; }
 

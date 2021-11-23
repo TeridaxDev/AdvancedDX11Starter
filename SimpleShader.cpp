@@ -17,7 +17,7 @@ bool ISimpleShader::ReportWarnings = false;
 ///////////////////////////////////////////////////////////////////////////////
 
 // --------------------------------------------------------
-// Constructor accepts DirectX device & context
+// Constructor accepts Direct3D device & context
 // --------------------------------------------------------
 ISimpleShader::ISimpleShader(Microsoft::WRL::ComPtr<ID3D11Device> device, Microsoft::WRL::ComPtr<ID3D11DeviceContext> context)
 {
@@ -59,7 +59,7 @@ void ISimpleShader::CleanUp()
 
 	for (unsigned int i = 0; i < shaderResourceViews.size(); i++)
 		delete shaderResourceViews[i];
-	
+
 	for (unsigned int i = 0; i < samplerStates.size(); i++)
 		delete samplerStates[i];
 
@@ -117,7 +117,7 @@ bool ISimpleShader::LoadShaderFile(LPCWSTR shaderFile)
 		shaderBlob->GetBufferSize(),
 		IID_ID3D11ShaderReflection,
 		(void**)refl.GetAddressOf());
-	
+
 	// Get the description of the shader
 	D3D11_SHADER_DESC shaderDesc;
 	refl->GetDesc(&shaderDesc);
@@ -125,7 +125,7 @@ bool ISimpleShader::LoadShaderFile(LPCWSTR shaderFile)
 	// Create resource arrays
 	constantBufferCount = shaderDesc.ConstantBuffers;
 	constantBuffers = new SimpleConstantBuffer[constantBufferCount];
-	
+
 	// Handle bound resources (like shaders and samplers)
 	unsigned int resourceCount = shaderDesc.BoundResources;
 	for (unsigned int r = 0; r < resourceCount; r++)
@@ -137,6 +137,7 @@ bool ISimpleShader::LoadShaderFile(LPCWSTR shaderFile)
 		// Check the type
 		switch (resourceDesc.Type)
 		{
+		case D3D_SIT_STRUCTURED: // Treat structured buffers as texture resources
 		case D3D_SIT_TEXTURE: // A texture resource
 		{
 			// Create the SRV wrapper
@@ -147,7 +148,7 @@ bool ISimpleShader::LoadShaderFile(LPCWSTR shaderFile)
 			textureTable.insert(std::pair<std::string, SimpleSRV*>(resourceDesc.Name, srv));
 			shaderResourceViews.push_back(srv);
 		}
-			break;
+		break;
 
 		case D3D_SIT_SAMPLER: // A sampler resource
 		{
@@ -159,7 +160,7 @@ bool ISimpleShader::LoadShaderFile(LPCWSTR shaderFile)
 			samplerTable.insert(std::pair<std::string, SimpleSampler*>(resourceDesc.Name, samp));
 			samplerStates.push_back(samp);
 		}
-			break;
+		break;
 		}
 	}
 
@@ -169,23 +170,26 @@ bool ISimpleShader::LoadShaderFile(LPCWSTR shaderFile)
 		// Get this buffer
 		ID3D11ShaderReflectionConstantBuffer* cb =
 			refl->GetConstantBufferByIndex(b);
-		
+
 		// Get the description of this buffer
 		D3D11_SHADER_BUFFER_DESC bufferDesc;
 		cb->GetDesc(&bufferDesc);
-		
+
+		// Save the type, which we reference when setting these buffers
+		constantBuffers[b].Type = bufferDesc.Type;
+
 		// Get the description of the resource binding, so
 		// we know exactly how it's bound in the shader
 		D3D11_SHADER_INPUT_BIND_DESC bindDesc;
 		refl->GetResourceBindingDescByName(bufferDesc.Name, &bindDesc);
-		
+
 		// Set up the buffer and put its pointer in the table
 		constantBuffers[b].BindIndex = bindDesc.BindPoint;
 		constantBuffers[b].Name = bufferDesc.Name;
 		cbTable.insert(std::pair<std::string, SimpleConstantBuffer*>(bufferDesc.Name, &constantBuffers[b]));
 
 		// Create this constant buffer
-		D3D11_BUFFER_DESC newBuffDesc;
+		D3D11_BUFFER_DESC newBuffDesc = {};
 		newBuffDesc.Usage = D3D11_USAGE_DEFAULT;
 		newBuffDesc.ByteWidth = bufferDesc.Size;
 		newBuffDesc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
@@ -205,17 +209,17 @@ bool ISimpleShader::LoadShaderFile(LPCWSTR shaderFile)
 			// Get this variable
 			ID3D11ShaderReflectionVariable* var =
 				cb->GetVariableByIndex(v);
-			
+
 			// Get the description of the variable and its type
 			D3D11_SHADER_VARIABLE_DESC varDesc;
 			var->GetDesc(&varDesc);
 
 			// Create the variable struct
-			SimpleShaderVariable varStruct;
+			SimpleShaderVariable varStruct = {};
 			varStruct.ConstantBufferIndex = b;
 			varStruct.ByteOffset = varDesc.StartOffset;
 			varStruct.Size = varDesc.Size;
-			
+
 			// Get a string version
 			std::string varName(varDesc.Name);
 
@@ -300,7 +304,7 @@ void ISimpleShader::LogW(std::wstring message, WORD color)
 	// Swap console color
 	HANDLE hConsole = GetStdHandle(STD_OUTPUT_HANDLE);
 	SetConsoleTextAttribute(hConsole, color);
-	
+
 	wprintf_s(message.c_str());
 	OutputDebugStringW(message.c_str());
 
@@ -319,7 +323,7 @@ void ISimpleShader::LogWarningW(std::wstring message) { LogW(message, FOREGROUND
 
 
 // --------------------------------------------------------
-// Sets the shader and associated constant buffers in DirectX
+// Sets the shader and associated constant buffers in Direct3D
 // --------------------------------------------------------
 void ISimpleShader::SetShader()
 {
@@ -368,7 +372,7 @@ void ISimpleShader::CopyBufferData(unsigned int index)
 	if (!shaderValid) return;
 
 	// Validate the index
-	if(index >= this->constantBufferCount)
+	if (index >= this->constantBufferCount)
 		return;
 
 	// Check for the buffer
@@ -377,7 +381,7 @@ void ISimpleShader::CopyBufferData(unsigned int index)
 
 	// Copy the data and get out
 	deviceContext->UpdateSubresource(
-		cb->ConstantBuffer.Get(), 0, 0, 
+		cb->ConstantBuffer.Get(), 0, 0,
 		cb->LocalDataBuffer, 0, 0);
 }
 
@@ -399,7 +403,7 @@ void ISimpleShader::CopyBufferData(std::string bufferName)
 
 	// Copy the data and get out
 	deviceContext->UpdateSubresource(
-		cb->ConstantBuffer.Get(), 0, 0, 
+		cb->ConstantBuffer.Get(), 0, 0,
 		cb->LocalDataBuffer, 0, 0);
 }
 
@@ -657,7 +661,7 @@ unsigned int ISimpleShader::GetBufferSize(unsigned int index)
 // Gets info about a particular constant buffer 
 // by name, if it exists
 // --------------------------------------------------------
-const SimpleConstantBuffer * ISimpleShader::GetBufferInfo(std::string name)
+const SimpleConstantBuffer* ISimpleShader::GetBufferInfo(std::string name)
 {
 	return FindConstantBuffer(name);
 }
@@ -667,7 +671,7 @@ const SimpleConstantBuffer * ISimpleShader::GetBufferInfo(std::string name)
 //
 // index - the index of the constant buffer
 // --------------------------------------------------------
-const SimpleConstantBuffer * ISimpleShader::GetBufferInfo(unsigned int index)
+const SimpleConstantBuffer* ISimpleShader::GetBufferInfo(unsigned int index)
 {
 	// Check for valid index
 	if (index >= constantBufferCount) return 0;
@@ -688,8 +692,8 @@ const SimpleConstantBuffer * ISimpleShader::GetBufferInfo(unsigned int index)
 // Constructor just calls the base
 // --------------------------------------------------------
 SimpleVertexShader::SimpleVertexShader(Microsoft::WRL::ComPtr<ID3D11Device> device, Microsoft::WRL::ComPtr<ID3D11DeviceContext> context, LPCWSTR shaderFile)
-	: ISimpleShader(device, context) 
-{ 
+	: ISimpleShader(device, context)
+{
 	// Ensure we set to zero to successfully trigger
 	// the Input Layout creation during LoadShaderFile()
 	this->perInstanceCompatible = false;
@@ -734,7 +738,7 @@ void SimpleVertexShader::CleanUp()
 }
 
 // --------------------------------------------------------
-// Creates the DirectX vertex shader
+// Creates the  Direct3D vertex shader
 //
 // shaderBlob - The shader's compiled code
 //
@@ -774,14 +778,14 @@ bool SimpleVertexShader::CreateShader(Microsoft::WRL::ComPtr<ID3DBlob> shaderBlo
 		shaderBlob->GetBufferSize(),
 		IID_ID3D11ShaderReflection,
 		(void**)refl.GetAddressOf());
-	
+
 	// Get shader info
 	D3D11_SHADER_DESC shaderDesc;
 	refl->GetDesc(&shaderDesc);
 
 	// Read input layout description from shader info
 	std::vector<D3D11_INPUT_ELEMENT_DESC> inputLayoutDesc;
-	for (unsigned int i = 0; i< shaderDesc.InputParameters; i++)
+	for (unsigned int i = 0; i < shaderDesc.InputParameters; i++)
 	{
 		D3D11_SIGNATURE_PARAMETER_DESC paramDesc;
 		refl->GetInputParameterDesc(i, &paramDesc);
@@ -790,12 +794,12 @@ bool SimpleVertexShader::CreateShader(Microsoft::WRL::ComPtr<ID3DBlob> shaderBlo
 		std::string perInstanceStr = "_PER_INSTANCE";
 		std::string sem = paramDesc.SemanticName;
 		int lenDiff = (int)sem.size() - (int)perInstanceStr.size();
-		bool isPerInstance = 
+		bool isPerInstance =
 			lenDiff >= 0 &&
 			sem.compare(lenDiff, perInstanceStr.size(), perInstanceStr) == 0;
 
 		// Fill out input element desc
-		D3D11_INPUT_ELEMENT_DESC elementDesc;
+		D3D11_INPUT_ELEMENT_DESC elementDesc = {};
 		elementDesc.SemanticName = paramDesc.SemanticName;
 		elementDesc.SemanticIndex = paramDesc.SemanticIndex;
 		elementDesc.InputSlot = 0;
@@ -845,9 +849,9 @@ bool SimpleVertexShader::CreateShader(Microsoft::WRL::ComPtr<ID3DBlob> shaderBlo
 
 	// Try to create Input Layout
 	HRESULT hr = device->CreateInputLayout(
-		&inputLayoutDesc[0], 
-		(unsigned int)inputLayoutDesc.size(), 
-		shaderBlob->GetBufferPointer(), 
+		&inputLayoutDesc[0],
+		(unsigned int)inputLayoutDesc.size(),
+		shaderBlob->GetBufferPointer(),
 		shaderBlob->GetBufferSize(),
 		inputLayout.GetAddressOf());
 
@@ -857,7 +861,7 @@ bool SimpleVertexShader::CreateShader(Microsoft::WRL::ComPtr<ID3DBlob> shaderBlo
 
 // --------------------------------------------------------
 // Sets the vertex shader, input layout and constant buffers
-// for future DirectX drawing
+// for future  Direct3D drawing
 // --------------------------------------------------------
 void SimpleVertexShader::SetShaderAndCBs()
 {
@@ -871,6 +875,11 @@ void SimpleVertexShader::SetShaderAndCBs()
 	// Set the constant buffers
 	for (unsigned int i = 0; i < constantBufferCount; i++)
 	{
+		// Skip "buffers" that aren't true constant buffers
+		if (constantBuffers[i].Type != D3D11_CT_CBUFFER)
+			continue;
+
+		// This is a real constant buffer, so set it
 		deviceContext->VSSetConstantBuffers(
 			constantBuffers[i].BindIndex,
 			1,
@@ -947,8 +956,8 @@ bool SimpleVertexShader::SetSamplerState(std::string name, Microsoft::WRL::ComPt
 // Constructor just calls the base
 // --------------------------------------------------------
 SimplePixelShader::SimplePixelShader(Microsoft::WRL::ComPtr<ID3D11Device> device, Microsoft::WRL::ComPtr<ID3D11DeviceContext> context, LPCWSTR shaderFile)
-	: ISimpleShader(device, context) 
-{ 
+	: ISimpleShader(device, context)
+{
 	// Load the actual compiled shader file
 	this->LoadShaderFile(shaderFile);
 }
@@ -970,7 +979,7 @@ void SimplePixelShader::CleanUp()
 }
 
 // --------------------------------------------------------
-// Creates the DirectX pixel shader
+// Creates the  Direct3D pixel shader
 //
 // shaderBlob - The shader's compiled code
 //
@@ -995,19 +1004,24 @@ bool SimplePixelShader::CreateShader(Microsoft::WRL::ComPtr<ID3DBlob> shaderBlob
 
 // --------------------------------------------------------
 // Sets the pixel shader and constant buffers for
-// future DirectX drawing
+// future  Direct3D drawing
 // --------------------------------------------------------
 void SimplePixelShader::SetShaderAndCBs()
 {
 	// Is shader valid?
 	if (!shaderValid) return;
-	
+
 	// Set the shader
 	deviceContext->PSSetShader(shader.Get(), 0, 0);
 
 	// Set the constant buffers
 	for (unsigned int i = 0; i < constantBufferCount; i++)
 	{
+		// Skip "buffers" that aren't true constant buffers
+		if (constantBuffers[i].Type != D3D11_CT_CBUFFER)
+			continue;
+
+		// This is a real constant buffer, so set it
 		deviceContext->PSSetConstantBuffers(
 			constantBuffers[i].BindIndex,
 			1,
@@ -1086,8 +1100,8 @@ bool SimplePixelShader::SetSamplerState(std::string name, Microsoft::WRL::ComPtr
 // Constructor just calls the base
 // --------------------------------------------------------
 SimpleDomainShader::SimpleDomainShader(Microsoft::WRL::ComPtr<ID3D11Device> device, Microsoft::WRL::ComPtr<ID3D11DeviceContext> context, LPCWSTR shaderFile)
-	: ISimpleShader(device, context) 
-{ 
+	: ISimpleShader(device, context)
+{
 	// Load the actual compiled shader file
 	this->LoadShaderFile(shaderFile);
 }
@@ -1109,7 +1123,7 @@ void SimpleDomainShader::CleanUp()
 }
 
 // --------------------------------------------------------
-// Creates the DirectX domain shader
+// Creates the  Direct3D domain shader
 //
 // shaderBlob - The shader's compiled code
 //
@@ -1134,7 +1148,7 @@ bool SimpleDomainShader::CreateShader(Microsoft::WRL::ComPtr<ID3DBlob> shaderBlo
 
 // --------------------------------------------------------
 // Sets the domain shader and constant buffers for
-// future DirectX drawing
+// future  Direct3D drawing
 // --------------------------------------------------------
 void SimpleDomainShader::SetShaderAndCBs()
 {
@@ -1147,6 +1161,11 @@ void SimpleDomainShader::SetShaderAndCBs()
 	// Set the constant buffers
 	for (unsigned int i = 0; i < constantBufferCount; i++)
 	{
+		// Skip "buffers" that aren't true constant buffers
+		if (constantBuffers[i].Type != D3D11_CT_CBUFFER)
+			continue;
+
+		// This is a real constant buffer, so set it
 		deviceContext->DSSetConstantBuffers(
 			constantBuffers[i].BindIndex,
 			1,
@@ -1224,8 +1243,8 @@ bool SimpleDomainShader::SetSamplerState(std::string name, Microsoft::WRL::ComPt
 // Constructor just calls the base
 // --------------------------------------------------------
 SimpleHullShader::SimpleHullShader(Microsoft::WRL::ComPtr<ID3D11Device> device, Microsoft::WRL::ComPtr<ID3D11DeviceContext> context, LPCWSTR shaderFile)
-	: ISimpleShader(device, context) 
-{ 
+	: ISimpleShader(device, context)
+{
 	// Load the actual compiled shader file
 	this->LoadShaderFile(shaderFile);
 }
@@ -1247,7 +1266,7 @@ void SimpleHullShader::CleanUp()
 }
 
 // --------------------------------------------------------
-// Creates the DirectX hull shader
+// Creates the  Direct3D hull shader
 //
 // shaderBlob - The shader's compiled code
 //
@@ -1272,7 +1291,7 @@ bool SimpleHullShader::CreateShader(Microsoft::WRL::ComPtr<ID3DBlob> shaderBlob)
 
 // --------------------------------------------------------
 // Sets the hull shader and constant buffers for
-// future DirectX drawing
+// future  Direct3D drawing
 // --------------------------------------------------------
 void SimpleHullShader::SetShaderAndCBs()
 {
@@ -1285,6 +1304,11 @@ void SimpleHullShader::SetShaderAndCBs()
 	// Set the constant buffers?
 	for (unsigned int i = 0; i < constantBufferCount; i++)
 	{
+		// Skip "buffers" that aren't true constant buffers
+		if (constantBuffers[i].Type != D3D11_CT_CBUFFER)
+			continue;
+
+		// This is a real constant buffer, so set it
 		deviceContext->HSSetConstantBuffers(
 			constantBuffers[i].BindIndex,
 			1,
@@ -1363,8 +1387,8 @@ bool SimpleHullShader::SetSamplerState(std::string name, Microsoft::WRL::ComPtr<
 // Constructor calls the base and sets up potential stream-out options
 // --------------------------------------------------------
 SimpleGeometryShader::SimpleGeometryShader(Microsoft::WRL::ComPtr<ID3D11Device> device, Microsoft::WRL::ComPtr<ID3D11DeviceContext> context, LPCWSTR shaderFile, bool useStreamOut, bool allowStreamOutRasterization)
-	: ISimpleShader(device, context) 
-{ 
+	: ISimpleShader(device, context)
+{
 	this->streamOutVertexSize = 0;
 	this->useStreamOut = useStreamOut;
 	this->allowStreamOutRasterization = allowStreamOutRasterization;
@@ -1390,7 +1414,7 @@ void SimpleGeometryShader::CleanUp()
 }
 
 // --------------------------------------------------------
-// Creates the DirectX Geometry shader
+// Creates the  Direct3D Geometry shader
 //
 // shaderBlob - The shader's compiled code
 //
@@ -1418,7 +1442,7 @@ bool SimpleGeometryShader::CreateShader(Microsoft::WRL::ComPtr<ID3DBlob> shaderB
 }
 
 // --------------------------------------------------------
-// Creates the DirectX Geometry shader and sets it up for
+// Creates the  Direct3D Geometry shader and sets it up for
 // stream output, if possible.
 //
 // shaderBlob - The shader's compiled code
@@ -1451,18 +1475,18 @@ bool SimpleGeometryShader::CreateShaderWithStreamOut(Microsoft::WRL::ComPtr<ID3D
 		// Get the info about this entry
 		D3D11_SIGNATURE_PARAMETER_DESC paramDesc;
 		refl->GetOutputParameterDesc(i, &paramDesc);
-		
+
 		// Create the SO Declaration
-		D3D11_SO_DECLARATION_ENTRY entry;
-		entry.SemanticIndex  = paramDesc.SemanticIndex;
-		entry.SemanticName   = paramDesc.SemanticName;
-		entry.Stream         = paramDesc.Stream;
+		D3D11_SO_DECLARATION_ENTRY entry = {};
+		entry.SemanticIndex = paramDesc.SemanticIndex;
+		entry.SemanticName = paramDesc.SemanticName;
+		entry.Stream = paramDesc.Stream;
 		entry.StartComponent = 0; // Assume starting at 0
-		entry.OutputSlot     = 0; // Assume the first output slot
+		entry.OutputSlot = 0; // Assume the first output slot
 
 		// Check the mask to determine how many components are used
 		entry.ComponentCount = CalcComponentCount(paramDesc.Mask);
-	
+
 		// Increment the size
 		streamOutVertexSize += entry.ComponentCount * sizeof(float);
 
@@ -1484,7 +1508,7 @@ bool SimpleGeometryShader::CreateShaderWithStreamOut(Microsoft::WRL::ComPtr<ID3D
 		rast,                           // Index of the stream to rasterize (if any)
 		NULL,                           // Not using class linkage
 		shader.GetAddressOf());
-	
+
 	return (result == S_OK);
 }
 
@@ -1516,13 +1540,13 @@ bool SimpleGeometryShader::CreateCompatibleStreamOutBuffer(Microsoft::WRL::ComPt
 	}
 
 	// Set up the buffer description
-	D3D11_BUFFER_DESC desc;
-	desc.BindFlags           = D3D11_BIND_STREAM_OUTPUT | D3D11_BIND_VERTEX_BUFFER;
-	desc.ByteWidth           = streamOutVertexSize * vertexCount;
-	desc.CPUAccessFlags      = 0;
-	desc.MiscFlags           = 0;
+	D3D11_BUFFER_DESC desc = {};
+	desc.BindFlags = D3D11_BIND_STREAM_OUTPUT | D3D11_BIND_VERTEX_BUFFER;
+	desc.ByteWidth = streamOutVertexSize * vertexCount;
+	desc.CPUAccessFlags = 0;
+	desc.MiscFlags = 0;
 	desc.StructureByteStride = 0;
-	desc.Usage               = D3D11_USAGE_DEFAULT;
+	desc.Usage = D3D11_USAGE_DEFAULT;
 
 	// Attempt to create the buffer and return the result
 	HRESULT result = device->CreateBuffer(&desc, 0, buffer.GetAddressOf());
@@ -1535,13 +1559,13 @@ bool SimpleGeometryShader::CreateCompatibleStreamOutBuffer(Microsoft::WRL::ComPt
 void SimpleGeometryShader::UnbindStreamOutStage(Microsoft::WRL::ComPtr<ID3D11DeviceContext> deviceContext)
 {
 	unsigned int offset = 0;
-	ID3D11Buffer* unset[4] = { 0, 0, 0, 0 }; // Max of 4 output targets according to DirectX documentation
+	ID3D11Buffer* unset[4] = { 0, 0, 0, 0 }; // Max of 4 output targets according to  Direct3D documentation
 	deviceContext->SOSetTargets(4, unset, &offset);
 }
 
 // --------------------------------------------------------
 // Sets the geometry shader and constant buffers for
-// future DirectX drawing
+// future  Direct3D drawing
 // --------------------------------------------------------
 void SimpleGeometryShader::SetShaderAndCBs()
 {
@@ -1554,6 +1578,11 @@ void SimpleGeometryShader::SetShaderAndCBs()
 	// Set the constant buffers?
 	for (unsigned int i = 0; i < constantBufferCount; i++)
 	{
+		// Skip "buffers" that aren't true constant buffers
+		if (constantBuffers[i].Type != D3D11_CT_CBUFFER)
+			continue;
+
+		// This is a real constant buffer, so set it
 		deviceContext->GSSetConstantBuffers(
 			constantBuffers[i].BindIndex,
 			1,
@@ -1648,8 +1677,8 @@ unsigned int SimpleGeometryShader::CalcComponentCount(unsigned int mask)
 // Constructor just calls the base
 // --------------------------------------------------------
 SimpleComputeShader::SimpleComputeShader(Microsoft::WRL::ComPtr<ID3D11Device> device, Microsoft::WRL::ComPtr<ID3D11DeviceContext> context, LPCWSTR shaderFile)
-	: ISimpleShader(device, context) 
-{ 
+	: ISimpleShader(device, context)
+{
 	this->threadsTotal = 0;
 	this->threadsX = 0;
 	this->threadsY = 0;
@@ -1678,7 +1707,7 @@ void SimpleComputeShader::CleanUp()
 }
 
 // --------------------------------------------------------
-// Creates the DirectX Compute shader
+// Creates the  Direct3D Compute shader
 //
 // shaderBlob - The shader's compiled code
 //
@@ -1712,7 +1741,7 @@ bool SimpleComputeShader::CreateShader(Microsoft::WRL::ComPtr<ID3DBlob> shaderBl
 	// Get the description of the shader
 	D3D11_SHADER_DESC shaderDesc;
 	refl->GetDesc(&shaderDesc);
-	
+
 	// Grab the thread info
 	threadsTotal = refl->GetThreadGroupSize(
 		&threadsX,
@@ -1746,7 +1775,7 @@ bool SimpleComputeShader::CreateShader(Microsoft::WRL::ComPtr<ID3DBlob> shaderBl
 
 // --------------------------------------------------------
 // Sets the Compute shader and constant buffers for
-// future DirectX drawing
+// future  Direct3D drawing
 // --------------------------------------------------------
 void SimpleComputeShader::SetShaderAndCBs()
 {
@@ -1759,6 +1788,11 @@ void SimpleComputeShader::SetShaderAndCBs()
 	// Set the constant buffers?
 	for (unsigned int i = 0; i < constantBufferCount; i++)
 	{
+		// Skip "buffers" that aren't true constant buffers
+		if (constantBuffers[i].Type != D3D11_CT_CBUFFER)
+			continue;
+
+		// This is a real constant buffer, so set it
 		deviceContext->CSSetConstantBuffers(
 			constantBuffers[i].BindIndex,
 			1,

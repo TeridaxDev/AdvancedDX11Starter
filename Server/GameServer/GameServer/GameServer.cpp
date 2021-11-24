@@ -195,7 +195,7 @@ void GameLoop()
                 {
                     //ignore a few frames to avoid instant self collision
                     if (projectiles[j].dead || projectiles[j].age < 0.1f) continue; 
-                    if (Helpers::CheckSphereCollision(players[i], &projectiles[j]))
+                    if (Helpers::CheckProjectileCollision(players[i], &projectiles[j], deltaTime, 3))
                     {
                         std::cout << "Player " << i << " is hit!" << std::endl;
                         projectiles[j].dead = true;

@@ -729,7 +729,7 @@ void Game::Update(float deltaTime, float totalTime)
 			Transform* camtf = localPlayer->GetCamera()->GetTransform();
 			tf->SetPosition(camtf->GetPosition().x + localPlayer->velocityX * deltaTime, camtf->GetPosition().y + localPlayer->velocityY * deltaTime, camtf->GetPosition().z + localPlayer->velocityZ * deltaTime);
 			tf->SetRotation(camtf->GetPitchYawRoll().x, camtf->GetPitchYawRoll().y, camtf->GetPitchYawRoll().z);
-			bullet->SetVelocity(0, 5, 20, -9.8f);
+			bullet->SetVelocity(0, 2, 35, -4.9f);
 			if (netManager->GetNetworkState() == NetworkState::Connected)
 				netManager->AddNetworkProjectile(bullet, index);
 		}

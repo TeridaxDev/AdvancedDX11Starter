@@ -110,24 +110,77 @@ public:
 
 	}
 
-	static bool CheckSphereCollision(Player* player, Projectile* projectile)
+private:
+
+	//Simulates a couple positions to interpolate collision checking
+	static void SimulatePositions(Projectile* projectile, float timeStep, float* x, float* y, float* z)
+	{
+		float x1, y1, z1, p, w, r;
+		float vX, vY, vZ;
+		x1 = projectile->GetTransform()->GetPosition().x;
+		y1 = projectile->GetTransform()->GetPosition().y;
+		z1 = projectile->GetTransform()->GetPosition().z;
+		vX = projectile->velocityX;
+		vY = projectile->velocityY;
+		vZ = projectile->velocityZ;
+		p = projectile->GetTransform()->GetPitchYawRoll().x;
+		w = projectile->GetTransform()->GetPitchYawRoll().y;
+		r = projectile->GetTransform()->GetPitchYawRoll().z;
+
+		vY += projectile->gravity * timeStep;
+		Transform tf = Transform();
+		tf.SetPosition(x1, y1, z1);
+		tf.SetRotation(p, w, r);
+		tf.MoveRelative(vX * timeStep, vY * timeStep, vZ * timeStep);
+
+		*x = tf.GetPosition().x;
+		*y = tf.GetPosition().y;
+		*z = tf.GetPosition().z;
+
+	}
+
+	static float GetDistanceBetweenPoints(float x1, float x2, float y1, float y2, float z1, float z2)
+	{
+		return sqrt(
+			pow(x1 - x2, 2) +
+			pow(y1 - y2, 2) +
+			pow(z1 - z2, 2));
+	}
+
+public:
+
+	//Checks for collision between a projectile and player. Also simulates sever positions between current pos and next frame pos
+	static bool CheckProjectileCollision(Player* player, Projectile* projectile, float deltaTime, int simulations = 3)
 	{
 		//Projectile radius - .1? Diameter .2?
 		//Player Radius .5
 
 		float x1, x2, y1, y2, z1, z2;
 		x1 = player->positionX;
-		y1 = player->positionY;
+		y1 = player->positionY - 1; //adj. camera height
 		z1 = player->positionZ;
 
 		x2 = projectile->GetTransform()->GetPosition().x;
 		y2 = projectile->GetTransform()->GetPosition().y;
 		z2 = projectile->GetTransform()->GetPosition().z;
 
-		float result = sqrt(
-			pow(x1 - x2, 2) + 
-			pow(y1-y2, 2) +
-			pow(z1-z2, 2));
+		float result = GetDistanceBetweenPoints(x1, x2, y1, y2, z1, z2);
+
+		//Don't bother interping if we collided this frame
+		if (result <= 0.6f)
+			return true;
+		else if (result > 10)
+			return false;
+
+		float timestep = deltaTime / (float)simulations; //I think we simulate 1 step past the next frame but i don't care
+		float x3, y3, z3;
+
+		for (int i = 1; i <= simulations; i++)
+		{
+			SimulatePositions(projectile, timestep * i, &x3, &y3, &z3);
+			float rs = GetDistanceBetweenPoints(x1, x3, y1, y3, z1, z3);
+			if (rs < result) result = rs;
+		}
 
 		if (result <= 0.6f) return true;
 		return false;

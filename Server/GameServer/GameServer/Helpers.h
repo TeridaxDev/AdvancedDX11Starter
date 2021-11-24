@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cmath>
+
 #include "Player.h"
 #include "Projectile.h"
 
@@ -105,6 +107,30 @@ public:
 		projectile->age = *(bff + 11);
 
 		projectile->dead = false;
+
+	}
+
+	static bool CheckSphereCollision(Player* player, Projectile* projectile)
+	{
+		//Projectile radius - .1? Diameter .2?
+		//Player Radius .5
+
+		float x1, x2, y1, y2, z1, z2;
+		x1 = player->positionX;
+		y1 = player->positionY;
+		z1 = player->positionZ;
+
+		x2 = projectile->GetTransform()->GetPosition().x;
+		y2 = projectile->GetTransform()->GetPosition().y;
+		z2 = projectile->GetTransform()->GetPosition().z;
+
+		float result = sqrt(
+			pow(x1 - x2, 2) + 
+			pow(y1-y2, 2) +
+			pow(z1-z2, 2));
+
+		if (result <= 0.6f) return true;
+		return false;
 
 	}
 

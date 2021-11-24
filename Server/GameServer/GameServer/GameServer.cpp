@@ -188,6 +188,22 @@ void GameLoop()
                     }
                 }
             }
+
+            for (int i = 0; i < players.size(); i++)
+            {
+                for (int j = 0; j < MAX_PROJECTILES; j++)
+                {
+                    //ignore a few frames to avoid instant self collision
+                    if (projectiles[j].dead || projectiles[j].age < 0.1f) continue; 
+                    if (Helpers::CheckSphereCollision(players[i], &projectiles[j]))
+                    {
+                        std::cout << "Player " << i << " is hit!" << std::endl;
+                        projectiles[j].dead = true;
+                        projectiles[j].age = projectiles[j].lifespan + 1; //tells the clients it's dead
+                        projectiles[j].GetTransform()->SetPosition(0, -5000, 0);
+                    }
+                }
+            }
         
             //Send player position and velocity data to each client
             std::fill_n(sendbuffer, 500, 0);

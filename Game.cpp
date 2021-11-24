@@ -126,6 +126,7 @@ void Game::Init()
 
 	localPlayer = new Player(Assets::GetInstance().GetMesh("Models\\sphere.obj"), materials[0], camera);
 	localPlayer->GetTransform()->SetPosition(0, -1, 0);
+	localPlayer->GetTransform()->SetScale(2, 2, 2);
 	localPlayer->GetTransform()->SetParent(camera->GetTransform(), false);
 	//entities.push_back(localPlayer); //UNCOMMENT TO RENDER THE PLAYER'S BODY. DONT FORGET TO COMMENT OUT "delete localPlayer"
 

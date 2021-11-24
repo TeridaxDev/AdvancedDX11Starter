@@ -239,6 +239,7 @@ void NetworkManager::Update(float dt, Player* local, Projectile** projectiles)
 			{
 				Player* newPlayer = new Player(playerMesh, playerMat, new Camera(0,10,-5, 3.0f,1.0f, 1280.0f / 720.0f), false);
 				newPlayer->GetTransform()->SetPosition(0, -1, 0);
+				newPlayer->GetTransform()->SetScale(2, 2, 2);
 				newPlayer->GetTransform()->SetParent(newPlayer->GetCamera()->GetTransform(), false);
 				remotePlayers.push_back(newPlayer);
 				entities->push_back(newPlayer);
@@ -250,6 +251,7 @@ void NetworkManager::Update(float dt, Player* local, Projectile** projectiles)
 		{
 			Player* newPlayer = new Player(playerMesh, playerMat, new Camera(0, 10, -5, 3.0f, 1.0f, 1280.0f / 720.0f), false);
 			newPlayer->GetTransform()->SetPosition(0, -1, 0);
+			newPlayer->GetTransform()->SetScale(2, 2, 2);
 			newPlayer->GetTransform()->SetParent(newPlayer->GetCamera()->GetTransform(), false);
 			remotePlayers.push_back(newPlayer);
 			entities->push_back(newPlayer);

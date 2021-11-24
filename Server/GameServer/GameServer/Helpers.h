@@ -153,7 +153,7 @@ public:
 	static bool CheckProjectileCollision(Player* player, Projectile* projectile, float deltaTime, int simulations = 3)
 	{
 		//Projectile radius - .1? Diameter .2?
-		//Player Radius .5
+		//Player Radius 1.0
 
 		float x1, x2, y1, y2, z1, z2;
 		x1 = player->positionX;
@@ -167,7 +167,7 @@ public:
 		float result = GetDistanceBetweenPoints(x1, x2, y1, y2, z1, z2);
 
 		//Don't bother interping if we collided this frame
-		if (result <= 0.6f)
+		if (result <= 1.1f)
 			return true;
 		else if (result > 10)
 			return false;
@@ -182,7 +182,7 @@ public:
 			if (rs < result) result = rs;
 		}
 
-		if (result <= 0.6f) return true;
+		if (result <= 1.1f) return true;
 		return false;
 
 	}

@@ -14,6 +14,7 @@
 
 using namespace std::chrono;
 
+#define MAX_PLAYERS 4
 #define MAX_PROJECTILES 6
 
 using frame = duration<int32_t, std::ratio<1, 60>>;
@@ -28,7 +29,7 @@ char buffer[500];
 char sendbuffer[500];
 bool newData;
 
-std::vector<Player*> players;
+Player* players[MAX_PLAYERS];
 Projectile projectiles[MAX_PROJECTILES];
 
 
@@ -51,49 +52,64 @@ void RecvFromLoop()
                 //Connection Request
                 if (*msgType == 1)
                 {
-                    //Tell every other played someone joined
-                    for (size_t i = 0; i < players.size(); i++)
+                    int firstOpen = -1;
+                    for (size_t i = 0; i < MAX_PLAYERS; i++)
                     {
+                        if (players[i] == nullptr)
+                        {
+                            firstOpen = i;
+                            break;
+                        }
+                    }
+                    if (firstOpen != -1)
+                    {
+
+                        ////Tell every other played someone joined
+                        //for (size_t i = 0; i < MAX_PLAYERS; i++)
+                        //{
+                        //    if (players[i] == nullptr) continue;
+                        //    //Send a response
+                        //    std::fill_n(sendbuffer, 500, 0);
+
+                        //    unsigned int data = 2;
+                        //    std::memcpy(&sendbuffer, &data, 4);
+                        //    Socket.SendTo(players[i]->client, sendbuffer, 500);
+                        //}
+
+
+                        //Respond with 1 to accept, followed by a player ID
+
+                        int newID = firstOpen;
+                        Player* np = new Player(sender, newID);
+                        players[firstOpen] = np;
+
+                        //Read player initial position and velocity
+                        Helpers::ReadPlayerMovementData(np, &buffer[0] + 1);
+
+                        /*for (size_t i = 0; i < 8; i++)
+                        {
+                            std::bitset<8> x(sendbuffer[i]);
+                            std::cout << x << " ";
+                        }*/
+
                         //Send a response
                         std::fill_n(sendbuffer, 500, 0);
 
-                        unsigned int data = 2;
+                        unsigned int data = 1;
                         std::memcpy(&sendbuffer, &data, 4);
-                        Socket.SendTo(players[i]->client, sendbuffer, 500);
+                        data = np->GetID();
+                        std::memcpy(&sendbuffer[4], &data, 4);
+                        data = MAX_PLAYERS;
+                        std::memcpy(&sendbuffer[8], &data, 4);
+
+                        Socket.SendTo(sender, sendbuffer, 500);
+
+                        std::cout << "Player " << np->GetID() << " joined.\n";
+
+                        //Clear buffer
+                        std::fill_n(buffer, 500, 0);
+                        newData = false;
                     }
-
-
-                    //Respond with 1 to accept, followed by a player ID
-
-                    int newID = players.size();
-                    Player* np = new Player(sender, newID);
-                    players.push_back(np);
-
-                    //Read player initial position and velocity
-                    Helpers::ReadPlayerMovementData(np, &buffer[0] + 1);
-
-                    /*for (size_t i = 0; i < 8; i++)
-                    {
-                        std::bitset<8> x(sendbuffer[i]);
-                        std::cout << x << " ";
-                    }*/
-
-                    //Send a response
-                    std::fill_n(sendbuffer, 500, 0);
-
-                    unsigned int data = 1;
-                    std::memcpy(&sendbuffer, &data, 4);
-                    data = np->GetID();
-                    std::memcpy(&sendbuffer[4], &data, 4);
-
-                    Socket.SendTo(sender, sendbuffer, 500);
-
-                    std::cout << "Player " << np->GetID() << " joined.\n";
-
-                    //Clear buffer
-                    std::fill_n(buffer, 500, 0);
-                    newData = false;
-
                 }
                 else if (*msgType == 3) //New projectile
                 {
@@ -105,13 +121,29 @@ void RecvFromLoop()
                     newData = false;
 
                 }
+                else if (*msgType == 4) //Intentional Disconnect
+                {
+                    unsigned int* pID = (unsigned int*)(&buffer[0] + 4);
+
+                    std::cout << "Player " << *pID << " disconnected." << std::endl;
+
+                    Player* dc = players[*pID];
+                    players[*pID] = nullptr;
+                    delete dc;
+
+                    //Clear buffer
+                    std::fill_n(buffer, 500, 0);
+                    newData = false;
+
+                }
                 else if(*msgType == 10) //Player update
                 { 
                     unsigned int playerID = *(msgType + 1);
                     //Find that player
                     Player* p = nullptr;
-                    for (size_t i = 0; i < players.size(); i++)
+                    for (size_t i = 0; i < MAX_PLAYERS; i++)
                     {
+                        if (players[i] == nullptr) continue;
                         if (players[i]->ID == playerID)
                         {
                             p = players[i];
@@ -169,8 +201,9 @@ void GameLoop()
             //std::cout << "LastFrame: " << duration_cast<ms>(FPS).count() << "ms  |  FPS: " << FPS.count() * 60 << std::endl;
         
             //Update every player
-            for (size_t i = 0; i < players.size(); i++)
+            for (size_t i = 0; i < MAX_PLAYERS; i++)
             {
+                if (players[i] == nullptr) continue;
                 players[i]->Update(deltaTime);
             }
 
@@ -189,8 +222,9 @@ void GameLoop()
                 }
             }
 
-            for (int i = 0; i < players.size(); i++)
+            for (int i = 0; i < MAX_PLAYERS; i++)
             {
+                if (players[i] == nullptr) continue;
                 for (int j = 0; j < MAX_PROJECTILES; j++)
                 {
                     //ignore a few frames to avoid instant self collision
@@ -211,16 +245,18 @@ void GameLoop()
             int msgtyp = 10;
 
             std::memcpy(&sendbuffer, &msgtyp, 4);
-            for (size_t i = 0; i < players.size(); i++)
+            for (size_t i = 0; i < MAX_PLAYERS; i++)
             {
+                if (players[i] == nullptr) continue;
                 Helpers::CopyPlayerMovementData(players[i], &sendbuffer[0] + (i * 36) + 4);
             }
             for (size_t i = 0; i < MAX_PROJECTILES; i++)
             {
-                Helpers::CopyProjectileMovementData(&projectiles[i], &sendbuffer[0] + (players.size() * 36) + (i * 48) + 4);
+                Helpers::CopyProjectileMovementData(&projectiles[i], &sendbuffer[0] + (MAX_PLAYERS * 36) + (i * 48) + 4);
             }
-            for (size_t i = 0; i < players.size(); i++)
+            for (size_t i = 0; i < MAX_PLAYERS; i++)
             {
+                if (players[i] == nullptr) continue;
                 Socket.SendTo(players[i]->client, sendbuffer, 500);
             }
         }
@@ -232,12 +268,15 @@ int main()
     std::string IP = "127.0.0.1";
     int PORT = 8888;
 
+    std::thread gameLoop;
+    std::thread recvLoop;
+
     try
     {
         Socket.Bind(PORT);
 
-        std::thread gameLoop = std::thread(&GameLoop);
-        std::thread recvLoop = std::thread(&RecvFromLoop);
+        gameLoop = std::thread(&GameLoop);
+        recvLoop = std::thread(&RecvFromLoop);
 
         for (int i = 0; i < MAX_PROJECTILES; i++)
         {
@@ -246,14 +285,15 @@ int main()
 
         std::cout << "Server online. Port number " << PORT << std::endl;
 
-        gameLoop.join();
-
-        recvLoop.join();
-
     }
     catch (std::exception& ex)
     {
         std::cout << ex.what() << std::endl;
     }
+
+    gameLoop.join();
+
+    recvLoop.join();
+
 }
 

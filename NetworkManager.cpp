@@ -14,6 +14,8 @@ void NetworkManager::ReceiveFrom()
 			catch (std::exception& ex)
 			{
 				std::cout << "RecvFrom error." << std::endl;
+				running = false;
+				Disconnect();
 			}
 			newData = true;
 		}
@@ -52,7 +54,14 @@ NetworkResult NetworkManager::Connect(std::string ip, int port, Player* local, M
 	playerMat = mat;
 
 	state = NetworkState::Connecting;
-	socket.Bind(0);
+	try
+	{
+		socket.Bind(0);
+	}
+	catch (std::exception& ex)
+	{
+
+	}
 
 	//Clear buffers
 	std::fill_n(sendBuffer, 500, 0);
@@ -75,14 +84,22 @@ NetworkResult NetworkManager::Connect(std::string ip, int port, Player* local, M
 
 NetworkResult NetworkManager::Disconnect()
 {
+
+	unsigned int msgType = 4;
+	std::fill_n(sendBuffer, 500, 0);
+	std::memcpy(&sendBuffer, &msgType, 4);
+	msgType = playerID;
+	std::memcpy(&sendBuffer + 4, &msgType, 4);
+	socket.SendTo(IP, PORT, sendBuffer, 500);
+
 	IP = "";
 	PORT = 0;
 	running = false;
-	newData = false;
+	newData = true;
 	//session.~WSASession();
-	socket.~UDPSocket();
 	recvFromThread.join();
-	socket = UDPSocket();
+	//socket.~UDPSocket();
+	//socket = UDPSocket();
 	//session = WSASession();
 	state = NetworkState::Offline;
 
@@ -222,7 +239,7 @@ void NetworkManager::AddNetworkProjectile(Projectile* projectile, int index)
 void NetworkManager::Update(float dt, Player* local, Projectile** projectiles)
 {
 
-	if (newData)
+	while (newData)
 	{
 
 		//Handle received data
@@ -235,8 +252,13 @@ void NetworkManager::Update(float dt, Player* local, Projectile** projectiles)
 			std::cout << "\nJoined as player " << *(msgType + 1) << std::endl;
 			playerID = *(msgType + 1);
 			//Create the remote players
-			for (size_t i = 0; i < *(msgType + 1); i++)
+			for (size_t i = 0; i < *(msgType + 2); i++)
 			{
+				if (i == playerID)
+				{
+					remotePlayers.push_back(nullptr); //Reserved spot for the local player
+					continue;
+				}
 				Player* newPlayer = new Player(playerMesh, playerMat, new Camera(0,10,-5, 3.0f,1.0f, 1280.0f / 720.0f), false);
 				newPlayer->GetTransform()->SetPosition(0, -1, 0);
 				newPlayer->GetTransform()->SetScale(2, 2, 2);
@@ -244,7 +266,6 @@ void NetworkManager::Update(float dt, Player* local, Projectile** projectiles)
 				remotePlayers.push_back(newPlayer);
 				entities->push_back(newPlayer);
 			}
-			remotePlayers.push_back(nullptr); //Reserved spot for the local player
 
 		}
 		else if (*msgType == 2 && state == NetworkState::Connected) //Player joined

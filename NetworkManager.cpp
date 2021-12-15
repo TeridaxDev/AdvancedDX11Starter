@@ -253,21 +253,22 @@ void NetworkManager::Update(float dt, Player* local, Projectile** projectiles)
 
 			std::cout << "\nJoined as player " << *(msgType + 1) << std::endl;
 			playerID = *(msgType + 1);
-			//Create the remote players
-			for (size_t i = 0; i < *(msgType + 2); i++)
-			{
-				if (i == playerID)
+			//Create the remote players'
+			if(remotePlayers.size() != *(msgType + 2))
+				for (size_t i = 0; i < *(msgType + 2); i++)
 				{
-					remotePlayers.push_back(nullptr); //Reserved spot for the local player
-					continue;
+					if (i == playerID)
+					{
+						remotePlayers.push_back(nullptr); //Reserved spot for the local player
+						continue;
+					}
+					Player* newPlayer = new Player(playerMesh, playerMat, new Camera(0, 10, -5, 3.0f, 1.0f, 1280.0f / 720.0f), false);
+					newPlayer->GetTransform()->SetPosition(0, -1, 0);
+					newPlayer->GetTransform()->SetScale(2, 2, 2);
+					newPlayer->GetTransform()->SetParent(newPlayer->GetCamera()->GetTransform(), false);
+					remotePlayers.push_back(newPlayer);
+					entities->push_back(newPlayer);
 				}
-				Player* newPlayer = new Player(playerMesh, playerMat, new Camera(0, 10, -5, 3.0f, 1.0f, 1280.0f / 720.0f), false);
-				newPlayer->GetTransform()->SetPosition(0, -1, 0);
-				newPlayer->GetTransform()->SetScale(2, 2, 2);
-				newPlayer->GetTransform()->SetParent(newPlayer->GetCamera()->GetTransform(), false);
-				remotePlayers.push_back(newPlayer);
-				entities->push_back(newPlayer);
-			}
 
 		}
 		break;

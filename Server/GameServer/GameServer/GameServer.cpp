@@ -249,7 +249,12 @@ void GameLoop()
             std::memcpy(&sendbuffer, &msgtyp, 4);
             for (size_t i = 0; i < MAX_PLAYERS; i++)
             {
-                if (players[i] == nullptr) continue;
+                if (players[i] == nullptr)
+                {
+                    float z = -5000;
+                    std::memcpy(&sendbuffer[0] + (i * 36) + 12, &z, 4);
+                    continue;
+                }
                 Helpers::CopyPlayerMovementData(players[i], &sendbuffer[0] + (i * 36) + 4);
             }
             for (size_t i = 0; i < MAX_PROJECTILES; i++)

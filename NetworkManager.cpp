@@ -84,12 +84,12 @@ NetworkResult NetworkManager::Connect(std::string ip, int port, Player* local, M
 
 NetworkResult NetworkManager::Disconnect()
 {
+	std::fill_n(sendBuffer, 500, 0);
 
 	unsigned int msgType = 4;
-	std::fill_n(sendBuffer, 500, 0);
 	std::memcpy(&sendBuffer, &msgType, 4);
 	msgType = playerID;
-	std::memcpy(&sendBuffer + 4, &msgType, 4);
+	std::memcpy(&sendBuffer[0] + 4, &msgType, 4);
 	socket.SendTo(IP, PORT, sendBuffer, 500);
 
 	IP = "";

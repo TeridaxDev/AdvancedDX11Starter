@@ -245,7 +245,9 @@ void NetworkManager::Update(float dt, Player* local, Projectile** projectiles)
 		//Handle received data
 		unsigned int* msgType = (unsigned int*)&recvBuffer;
 
-		if (*msgType == 1) //Connected request accepted
+		switch (*msgType)
+		{
+		case 1: //Connected request accepted
 		{
 			if (state == NetworkState::Connecting) state = NetworkState::Connected;
 
@@ -259,7 +261,7 @@ void NetworkManager::Update(float dt, Player* local, Projectile** projectiles)
 					remotePlayers.push_back(nullptr); //Reserved spot for the local player
 					continue;
 				}
-				Player* newPlayer = new Player(playerMesh, playerMat, new Camera(0,10,-5, 3.0f,1.0f, 1280.0f / 720.0f), false);
+				Player* newPlayer = new Player(playerMesh, playerMat, new Camera(0, 10, -5, 3.0f, 1.0f, 1280.0f / 720.0f), false);
 				newPlayer->GetTransform()->SetPosition(0, -1, 0);
 				newPlayer->GetTransform()->SetScale(2, 2, 2);
 				newPlayer->GetTransform()->SetParent(newPlayer->GetCamera()->GetTransform(), false);
@@ -268,42 +270,46 @@ void NetworkManager::Update(float dt, Player* local, Projectile** projectiles)
 			}
 
 		}
-		else if (*msgType == 2 && state == NetworkState::Connected) //Player joined
-		{
-			Player* newPlayer = new Player(playerMesh, playerMat, new Camera(0, 10, -5, 3.0f, 1.0f, 1280.0f / 720.0f), false);
-			newPlayer->GetTransform()->SetPosition(0, -1, 0);
-			newPlayer->GetTransform()->SetScale(2, 2, 2);
-			newPlayer->GetTransform()->SetParent(newPlayer->GetCamera()->GetTransform(), false);
-			remotePlayers.push_back(newPlayer);
-			entities->push_back(newPlayer);
-		}
-		//else if (*msgType == 3 && state == NetworkState::Connected) //New projectile
-		//{
-		//	return; // Ignore call for now
-		//	Projectile* newProjectile = new Projectile(playerMesh, playerMat, 5);
-		//	entities->push_back(newProjectile);
-		//	newProjectile->GetTransform()->SetScale(0.2f, 0.2f, 0.2f);
-		//}
-		else if (*msgType == 10 && state == NetworkState::Connected) //Remote Player Update
-		{
-			for (size_t i = 0; i < remotePlayers.size(); i++)
+		break;
+		case 2:
+			if (state == NetworkState::Connected) //Player joined
 			{
-				if (remotePlayers[i] == nullptr) continue;
-
-				ReadPlayerMovementData(remotePlayers[i], &recvBuffer[0] + 4 + (36 * i));
+				Player* newPlayer = new Player(playerMesh, playerMat, new Camera(0, 10, -5, 3.0f, 1.0f, 1280.0f / 720.0f), false);
+				newPlayer->GetTransform()->SetPosition(0, -1, 0);
+				newPlayer->GetTransform()->SetScale(2, 2, 2);
+				newPlayer->GetTransform()->SetParent(newPlayer->GetCamera()->GetTransform(), false);
+				remotePlayers.push_back(newPlayer);
+				entities->push_back(newPlayer);
 			}
-			for (size_t i = 0; i < MAX_PROJECTILES; i++)
+			break;
+			//else if (*msgType == 3 && state == NetworkState::Connected) //New projectile
+			//{
+			//	return; // Ignore call for now
+			//	Projectile* newProjectile = new Projectile(playerMesh, playerMat, 5);
+			//	entities->push_back(newProjectile);
+			//	newProjectile->GetTransform()->SetScale(0.2f, 0.2f, 0.2f);
+			//}
+		case 10:
+			if (state == NetworkState::Connected) //Remote Player Update
 			{
-				ReadProjectileMovementData(*(projectiles + i), &recvBuffer[0] + 4 + (36 * remotePlayers.size()) + (48 * i));
-				Projectile* p = *(projectiles + i);
-				if (p->dead && p->age < p->lifespan) p->dead = false; //Fix for when the server resurrects a projectile and doesn't tell us
+				for (size_t i = 0; i < remotePlayers.size(); i++)
+				{
+					if (remotePlayers[i] == nullptr) continue;
+
+					ReadPlayerMovementData(remotePlayers[i], &recvBuffer[0] + 4 + (36 * i));
+				}
+				for (size_t i = 0; i < MAX_PROJECTILES; i++)
+				{
+					ReadProjectileMovementData(*(projectiles + i), &recvBuffer[0] + 4 + (36 * remotePlayers.size()) + (48 * i));
+					Projectile* p = *(projectiles + i);
+					if (p->dead && p->age < p->lifespan) p->dead = false; //Fix for when the server resurrects a projectile and doesn't tell us
+				}
 			}
+			break;
 		}
-
-
-		//Clear buffer
-		std::fill_n(recvBuffer, 500, 0);
-		newData = false;
+			//Clear buffer
+			std::fill_n(recvBuffer, 500, 0);
+			newData = false;
 	}
 
 

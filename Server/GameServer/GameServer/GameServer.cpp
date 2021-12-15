@@ -127,6 +127,8 @@ void RecvFromLoop()
 
                     std::cout << "Player " << *pID << " disconnected." << std::endl;
 
+                    Socket.SendTo(players[*pID]->client, sendbuffer, 500); //Send garbage to free the recvfrom
+
                     Player* dc = players[*pID];
                     players[*pID] = nullptr;
                     delete dc;

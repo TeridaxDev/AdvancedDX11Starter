@@ -640,7 +640,10 @@ void Game::Update(float deltaTime, float totalTime)
 		{
 			if (ImGui::TreeNode(("Light " + std::to_string(i + 1)).c_str()))
 			{
-				ImGui::DragFloat3("Position", &lights[i].Position.x);
+				if(lights[i].Type == LIGHT_TYPE_POINT)
+					ImGui::DragFloat3("Position", &lights[i].Position.x);
+				else
+					ImGui::DragFloat3("Direction", &lights[i].Direction.x);
 				ImGui::DragFloat("Intensity", &lights[i].Intensity);
 				ImGui::ColorEdit4("Color", &lights[i].Color.x);
 				ImGui::TreePop();

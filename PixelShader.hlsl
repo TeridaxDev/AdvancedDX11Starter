@@ -41,6 +41,7 @@ struct VertexToPixel
 	float3 normal			: NORMAL;
 	float3 tangent			: TANGENT;
 	float3 worldPos			: POSITION; // The world position of this PIXEL
+    float4 posForShadow		: SHADOWPOS;
 };
 
 //Output
@@ -56,7 +57,9 @@ struct PS_Output
 Texture2D AlbedoTexture			: register(t0);
 Texture2D NormalTexture			: register(t1);
 Texture2D RoughnessTexture		: register(t2);
+Texture2D ShadowMap				: register(t3);
 SamplerState BasicSampler		: register(s0);
+SamplerComparisonState ShadowSampler : register(s2);
 
 
 // Entry point for this pixel shader
@@ -78,6 +81,20 @@ PS_Output main(VertexToPixel input) : SV_TARGET
 	float4 surfaceColor = AlbedoTexture.Sample(BasicSampler, input.uv);
 	surfaceColor.rgb = pow(surfaceColor.rgb, 2.2) * Color.rgb;
 
+	// SHADOW MAPPING --------------------------------
+	// Note: This is only for a SINGLE light!  If you want multiple lights to cast shadows,
+	// you need to do all of this multiple times IN THIS SHADER.
+    float2 shadowUV = input.posForShadow.xy / input.posForShadow.w * 0.5f + 0.5f;
+    shadowUV.y = 1.0f - shadowUV.y;
+
+	// Calculate this pixel's depth from the light
+    float depthFromLight = input.posForShadow.z / input.posForShadow.w;
+
+	// Sample the shadow map using a comparison sampler, which
+	// will compare the depth from the light and the value in the shadow map
+	// Note: This is applied below, after we calc our DIRECTIONAL LIGHT
+    float shadowAmount = ShadowMap.SampleCmpLevelZero(ShadowSampler, shadowUV, depthFromLight);
+	
 	// Total color for this pixel
 	float3 totalColor = float3(0,0,0);
 
@@ -88,7 +105,12 @@ PS_Output main(VertexToPixel input) : SV_TARGET
 		switch (Lights[i].Type)
 		{
 		case LIGHT_TYPE_DIRECTIONAL:
-			totalColor += DirLight(Lights[i], input.normal, input.worldPos, CameraPosition, specPower, surfaceColor.rgb);
+			float3 dirLightResult = DirLight(Lights[i], input.normal, input.worldPos, CameraPosition, specPower, surfaceColor.rgb);
+			
+			// Apply the directional light result, scaled by the shadow mapping
+			//   Note: This demo really only has one shadow map, so this
+			//   will only be correct for THE FIRST DIRECTIONAL LIGHT
+            totalColor += dirLightResult * (Lights[i].CastsShadows ? shadowAmount : 1.0f);
 			break;
 
 		case LIGHT_TYPE_POINT:

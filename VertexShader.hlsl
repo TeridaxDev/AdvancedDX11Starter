@@ -6,7 +6,8 @@ cbuffer externalData : register(b0)
 	matrix worldInverseTranspose;
 	matrix view;
 	matrix projection;
-
+    matrix shadowView;
+    matrix shadowProjection;
 	float2 uvScale;
 };
 
@@ -27,6 +28,7 @@ struct VertexToPixel
 	float3 normal			: NORMAL;
 	float3 tangent			: TANGENT;
 	float3 worldPos			: POSITION; // The world position of this vertex
+    float4 posForShadow		: SHADOWPOS;
 };
 
 // --------------------------------------------------------
@@ -41,6 +43,10 @@ VertexToPixel main(VertexShaderInput input)
 	matrix worldViewProj = mul(projection, mul(view, world));
 	output.screenPosition = mul(worldViewProj, float4(input.position, 1.0f));
 
+	// Calculate where this vertex is from the light's point of view
+    matrix shadowWVP = mul(shadowProjection, mul(shadowView, world));
+    output.posForShadow = mul(shadowWVP, float4(input.position, 1.0f));
+	
 	// Calculate the world position of this vertex (to be used
 	// in the pixel shader when we do point/spot lights)
 	output.worldPos = mul(world, float4(input.position, 1.0f)).xyz;

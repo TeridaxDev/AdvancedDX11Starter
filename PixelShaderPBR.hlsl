@@ -37,6 +37,7 @@ struct VertexToPixel
 	float3 normal			: NORMAL;
 	float3 tangent			: TANGENT;
 	float3 worldPos			: POSITION; // The world position of this PIXEL
+    float4 posForShadow		: SHADOWPOS;
 };
 
 //Output
@@ -59,9 +60,13 @@ Texture2D BrdfLookUpMap			: register(t4);
 TextureCube IrradianceIBLMap	: register(t5);
 TextureCube SpecularIBLMap		: register(t6);
 
+//ShadowMap
+Texture2D ShadowMap				: register(t7);
+
 // Samplers
 SamplerState BasicSampler		: register(s0);
 SamplerState ClampSampler		: register(s1);
+SamplerComparisonState ShadowSampler : register(s2);
 
 // Entry point for this pixel shader
 PS_Output main(VertexToPixel input) : SV_TARGET
@@ -84,6 +89,20 @@ PS_Output main(VertexToPixel input) : SV_TARGET
 	// because of linear texture sampling, so we want lerp the specular color to match
 	float3 specColor = lerp(F0_NON_METAL.rrr, surfaceColor.rgb, metal);
 
+	// SHADOW MAPPING --------------------------------
+	// Note: This is only for a SINGLE light!  If you want multiple lights to cast shadows,
+	// you need to do all of this multiple times IN THIS SHADER.
+    float2 shadowUV = input.posForShadow.xy / input.posForShadow.w * 0.5f + 0.5f;
+    shadowUV.y = 1.0f - shadowUV.y;
+
+	// Calculate this pixel's depth from the light
+    float depthFromLight = input.posForShadow.z / input.posForShadow.w;
+
+	// Sample the shadow map using a comparison sampler, which
+	// will compare the depth from the light and the value in the shadow map
+	// Note: This is applied below, after we calc our DIRECTIONAL LIGHT
+    float shadowAmount = ShadowMap.SampleCmpLevelZero(ShadowSampler, shadowUV, depthFromLight);
+	
 	// Total color for this pixel
 	float3 totalColor = float3(0,0,0);
 
@@ -94,7 +113,12 @@ PS_Output main(VertexToPixel input) : SV_TARGET
 		switch (Lights[i].Type)
 		{
 		case LIGHT_TYPE_DIRECTIONAL:
-			totalColor += DirLightPBR(Lights[i], input.normal, input.worldPos, CameraPosition, roughness, metal, surfaceColor.rgb, specColor);
+			float3 dirLightResult = DirLightPBR(Lights[i], input.normal, input.worldPos, CameraPosition, roughness, metal, surfaceColor.rgb, specColor);
+			
+			// Apply the directional light result, scaled by the shadow mapping
+			//   Note: This demo really only has one shadow map, so this
+			//   will only be correct for THE FIRST DIRECTIONAL LIGHT
+            totalColor += dirLightResult * (Lights[i].CastsShadows ? shadowAmount : 1.0f);
 			break;
 
 		case LIGHT_TYPE_POINT:

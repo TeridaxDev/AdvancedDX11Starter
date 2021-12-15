@@ -24,5 +24,6 @@ struct Light
 	DirectX::XMFLOAT3	Color;		// 48 bytes
 
 	float				SpotFalloff;
+	int					CastsShadows;
 	DirectX::XMFLOAT3	Padding;	// 64 bytes
 };

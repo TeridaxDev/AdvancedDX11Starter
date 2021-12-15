@@ -65,6 +65,7 @@ Renderer::Renderer(Microsoft::WRL::ComPtr<ID3D11Device> device, Microsoft::WRL::
 	CreateGenericRenderTarget(windowWidth, windowHeight, sceneDepthRTV, sceneDepthSRV, DXGI_FORMAT_R32_FLOAT);
 	CreateGenericRenderTarget(windowWidth, windowHeight, ssaoResultRTV, ssaoResultSRV);
 	CreateGenericRenderTarget(windowWidth, windowHeight, ssaoBlurRTV, ssaoBlurSRV);
+	CreateShadowMapResources();
 
 }
 
@@ -90,6 +91,7 @@ void Renderer::PostResize(unsigned int windowWidth, unsigned int windowHeight, M
 	CreateGenericRenderTarget(windowWidth, windowHeight, sceneDepthRTV, sceneDepthSRV, DXGI_FORMAT_R32_FLOAT);
 	CreateGenericRenderTarget(windowWidth, windowHeight, ssaoResultRTV, ssaoResultSRV);
 	CreateGenericRenderTarget(windowWidth, windowHeight, ssaoBlurRTV, ssaoBlurSRV);
+	CreateShadowMap();
 
 }
 
@@ -116,6 +118,9 @@ void Renderer::Render(Camera* camera, float totalTime, int lightCount, SimpleVer
 		1.0f,
 		0);
 
+
+
+	RenderShadowMap();
 
 	ID3D11RenderTargetView* renderTargets[4] = {};
 	renderTargets[0] = sceneColorsRTV.Get();
@@ -144,6 +149,12 @@ void Renderer::Render(Camera* camera, float totalTime, int lightCount, SimpleVer
 		ps->SetShaderResourceView("IrradianceIBLMap", sky->IBLGetIrradianceMap());
 		ps->SetShaderResourceView("SpecularIBLMap", sky->IBLGetConvolvedSpecularMap());
 		ps->SetShaderResourceView("BrdfLookUpMap", sky->IBLGetBRDFLookupTexture());
+		ps->SetShaderResourceView("ShadowMap", shadowDepthSRV);
+		ps->SetSamplerState("ShadowSampler", shadowSampler);
+
+		SimpleVertexShader* vs = ge->GetMaterial()->GetVS();
+		vs->SetMatrix4x4("shadowView", shadowViewMatrix);
+		vs->SetMatrix4x4("shadowProjection", shadowProjectionMatrix);
 
 		// Draw the entity
 		ge->Draw(context, camera);
@@ -333,6 +344,11 @@ Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> Renderer::GetSSAO()
 	return ssaoBlurSRV;
 }
 
+Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> Renderer::GetShadowSRV()
+{
+	return shadowDepthSRV;
+}
+
 void Renderer::CreateGenericRenderTarget(unsigned int width, unsigned int height, Microsoft::WRL::ComPtr<ID3D11RenderTargetView>& rtv, Microsoft::WRL::ComPtr<ID3D11ShaderResourceView>& srv, DXGI_FORMAT colorFormat)
 {
 
@@ -359,5 +375,123 @@ void Renderer::CreateGenericRenderTarget(unsigned int width, unsigned int height
 
 	device->CreateShaderResourceView(rtTexture.Get(), 0, srv.GetAddressOf());
 
+
+}
+
+void Renderer::CreateShadowMap()
+{
+	
+	shadowDepthSRV.Reset();
+	shadowDepthDSV.Reset();
+
+	D3D11_TEXTURE2D_DESC shadowDesc = {};
+	shadowDesc.Width = shadowMapSize;
+	shadowDesc.Height = shadowMapSize;
+	shadowDesc.ArraySize = 1;
+	shadowDesc.BindFlags = D3D11_BIND_DEPTH_STENCIL | D3D11_BIND_SHADER_RESOURCE;
+	shadowDesc.CPUAccessFlags = 0;
+	shadowDesc.Format = DXGI_FORMAT_R32_TYPELESS;
+	shadowDesc.MipLevels = 1;
+	shadowDesc.MiscFlags = 0;
+	shadowDesc.SampleDesc.Count = 1;
+	shadowDesc.SampleDesc.Quality = 0;
+	shadowDesc.Usage = D3D11_USAGE_DEFAULT;
+	Microsoft::WRL::ComPtr<ID3D11Texture2D> shadowTexture;
+	device->CreateTexture2D(&shadowDesc, 0, shadowTexture.GetAddressOf());
+
+	D3D11_DEPTH_STENCIL_VIEW_DESC shadowDSDesc = {};
+	shadowDSDesc.Format = DXGI_FORMAT_D32_FLOAT;
+	shadowDSDesc.ViewDimension = D3D11_DSV_DIMENSION_TEXTURE2D;
+	shadowDSDesc.Texture2D.MipSlice = 0;
+	device->CreateDepthStencilView(shadowTexture.Get(), &shadowDSDesc, shadowDepthDSV.GetAddressOf());
+
+	D3D11_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+	srvDesc.Format = DXGI_FORMAT_R32_FLOAT;
+	srvDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
+	srvDesc.Texture2D.MipLevels = 1;
+	srvDesc.Texture2D.MostDetailedMip = 0;
+	device->CreateShaderResourceView(shadowTexture.Get(), &srvDesc, shadowDepthSRV.GetAddressOf());
+
+}
+
+void Renderer::CreateShadowMapResources()
+{
+	CreateShadowMap();
+
+	D3D11_SAMPLER_DESC shadowSampDesc = {};
+	shadowSampDesc.Filter = D3D11_FILTER_COMPARISON_MIN_MAG_MIP_LINEAR;
+	shadowSampDesc.ComparisonFunc = D3D11_COMPARISON_LESS;
+	shadowSampDesc.AddressU = D3D11_TEXTURE_ADDRESS_BORDER;
+	shadowSampDesc.AddressV = D3D11_TEXTURE_ADDRESS_BORDER;
+	shadowSampDesc.AddressW = D3D11_TEXTURE_ADDRESS_BORDER;
+	shadowSampDesc.BorderColor[0] = 1.0f;
+	shadowSampDesc.BorderColor[1] = 1.0f;
+	shadowSampDesc.BorderColor[2] = 1.0f;
+	shadowSampDesc.BorderColor[3] = 1.0f;
+	device->CreateSamplerState(&shadowSampDesc, &shadowSampler);
+
+	D3D11_RASTERIZER_DESC shadowRastDesc = {};
+	shadowRastDesc.FillMode = D3D11_FILL_SOLID;
+	shadowRastDesc.CullMode = D3D11_CULL_BACK;
+	shadowRastDesc.DepthClipEnable = true;
+	shadowRastDesc.DepthBias = 1000;
+	shadowRastDesc.DepthBiasClamp = 0.0f;
+	shadowRastDesc.SlopeScaledDepthBias = 1.0f;
+	device->CreateRasterizerState(&shadowRastDesc, &shadowRasterizer);
+
+
+	UpdateShadowProjection();
+}
+
+void Renderer::UpdateShadowProjection()
+{
+	XMMATRIX shProj = XMMatrixOrthographicLH(shadowProjectionSize, shadowProjectionSize, 0.1f, 100.0f);
+	XMStoreFloat4x4(&shadowProjectionMatrix, shProj);
+}
+
+void Renderer::UpdateShadowView(const Light* light)
+{
+	XMMATRIX shView = XMMatrixLookToLH(
+		XMLoadFloat3(&light->Direction) * -25, XMLoadFloat3(&light->Direction), XMVectorSet(0, 1, 0, 0));
+	XMStoreFloat4x4(&shadowViewMatrix, shView);
+}
+
+void Renderer::RenderShadowMap()
+{
+	UpdateShadowView(&lights[0]);
+
+	context->OMSetRenderTargets(0, 0, shadowDepthDSV.Get());
+	context->ClearDepthStencilView(shadowDepthDSV.Get(), D3D11_CLEAR_DEPTH, 1.0f, 0);
+	context->RSSetState(shadowRasterizer.Get());
+
+	D3D11_VIEWPORT viewport = {};
+	viewport.TopLeftX = 0.0f;
+	viewport.TopLeftY = 0.0f;
+	viewport.Width = (float)shadowMapSize;
+	viewport.Height = (float)shadowMapSize;
+	viewport.MinDepth = 0.0f;
+	viewport.MaxDepth = 1.0f;
+	context->RSSetViewports(1, &viewport);
+
+	SimpleVertexShader* shadowVS = Assets::GetInstance().GetVertexShader("ShadowVS.cso");
+	shadowVS->SetShader();
+	shadowVS->SetMatrix4x4("view", shadowViewMatrix);
+	shadowVS->SetMatrix4x4("projection", shadowProjectionMatrix);
+	shadowVS->CopyBufferData("perFrame");
+	context->PSSetShader(0, 0, 0);
+
+	for (auto& e : entities)
+	{
+		shadowVS->SetMatrix4x4("world", e->GetTransform()->GetWorldMatrix());
+		shadowVS->CopyBufferData("perObject");
+
+		e->GetMesh()->SetBuffersAndDraw(context);
+	}
+
+	context->OMSetRenderTargets(1, backBufferRTV.GetAddressOf(), depthBufferDSV.Get());
+	viewport.Width = (float)this->windowWidth;
+	viewport.Height = (float)this->windowHeight;
+	context->RSSetViewports(1, &viewport);
+	context->RSSetState(0);
 
 }

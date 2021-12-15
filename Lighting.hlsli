@@ -22,7 +22,8 @@ struct Light
 	float3	Color;		// 48 bytes
 
 	float	SpotFalloff;
-	float3	Padding;	// 64 bytes
+    int		CastsShadows;
+	float2	Padding;	// 64 bytes
 };
 
 // === UTILITY FUNCTIONS ============================================

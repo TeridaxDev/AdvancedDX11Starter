@@ -529,6 +529,7 @@ void Game::GenerateLights()
 	dir1.Direction = XMFLOAT3(1, -1, 1);
 	dir1.Color = XMFLOAT3(0.8f, 0.8f, 0.8f);
 	dir1.Intensity = 1.0f;
+	dir1.CastsShadows = 1;
 
 	Light dir2 = {};
 	dir2.Type = LIGHT_TYPE_DIRECTIONAL;
@@ -545,7 +546,7 @@ void Game::GenerateLights()
 	// Add light to the list
 	lights.push_back(dir1);
 	lights.push_back(dir2);
-	lights.push_back(dir3);
+	lights.push_back(dir3);  //Only want one directional light for shadows
 
 	// Create the rest of the lights
 	while (lights.size() < lightCount)
@@ -620,6 +621,8 @@ void Game::Update(float deltaTime, float totalTime)
 
 	ImGui::Begin("Render Targets");
 
+	ImGui::Text("Shadow Map");
+	ImGui::Image(renderer->GetShadowSRV().Get(), ImVec2(500, 500));
 	ImGui::Text("SSAO");
 	ImGui::Image(renderer->GetSSAO().Get(), ImVec2(500, 300));
 	ImGui::Text("Scene Color");
@@ -641,9 +644,9 @@ void Game::Update(float deltaTime, float totalTime)
 			if (ImGui::TreeNode(("Light " + std::to_string(i + 1)).c_str()))
 			{
 				if(lights[i].Type == LIGHT_TYPE_POINT)
-					ImGui::DragFloat3("Position", &lights[i].Position.x);
+					ImGui::DragFloat3("Position", &lights[i].Position.x, 0.1f);
 				else
-					ImGui::DragFloat3("Direction", &lights[i].Direction.x);
+					ImGui::DragFloat3("Direction", &lights[i].Direction.x, 0.1f);
 				ImGui::DragFloat("Intensity", &lights[i].Intensity);
 				ImGui::ColorEdit4("Color", &lights[i].Color.x);
 				ImGui::TreePop();

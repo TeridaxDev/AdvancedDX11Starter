@@ -31,6 +31,21 @@ private:
 	DirectX::XMFLOAT4 ssaoOffsets[64];
 	int ssaoSamples;
 	float ssaoRadius;
+	
+	//Shadow Variable
+	int shadowMapSize = 4096;
+	float shadowProjectionSize = 40.0f;
+	Microsoft::WRL::ComPtr<ID3D11DepthStencilView> shadowDepthDSV;
+	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> shadowDepthSRV;
+	Microsoft::WRL::ComPtr<ID3D11SamplerState> shadowSampler;
+	Microsoft::WRL::ComPtr<ID3D11RasterizerState> shadowRasterizer;
+	DirectX::XMFLOAT4X4 shadowViewMatrix;
+	DirectX::XMFLOAT4X4 shadowProjectionMatrix;
+	void CreateShadowMap();
+	void CreateShadowMapResources();
+	void UpdateShadowProjection();
+	void UpdateShadowView(const Light* light);
+	void RenderShadowMap();
 
 	DirectX::XMFLOAT3 ambientNonPBR;
 
@@ -51,7 +66,6 @@ private:
 	Microsoft::WRL::ComPtr<ID3D11DepthStencilState> particleDepthState;
 
 	void CreateGenericRenderTarget(unsigned int width, unsigned int height, Microsoft::WRL::ComPtr<ID3D11RenderTargetView>& rtv, Microsoft::WRL::ComPtr<ID3D11ShaderResourceView>& srv, DXGI_FORMAT colorFormat = DXGI_FORMAT_R8G8B8A8_UNORM);
-
 
 public:
 
@@ -80,6 +94,7 @@ public:
 	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> GetSceneAmbientSRV();
 	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> GetSceneDepthSRV();
 	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> GetSSAO();
+	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> GetShadowSRV();
 
 };
 

@@ -1,1 +1,0 @@
-I tried to implement a universal asset loader but wasn't able to complete it.

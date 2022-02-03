@@ -1,4 +1,6 @@
 # ABOUT THIS FORK
-I am using this game engine to make a Networked Multiplayer First or 3rd Person game for Chris Egert's networking class, in addition to continuing to work on the engine itself for AGGP.
+While following along with the graphics programming course, I have also implemented a custom networking solution.
 
-If things get real bad I might move the "game" components to another branch, though.
+The sever project is in the "Server" folder.
+
+Uses a somewhat-authoritative server model. Supports ~ 4 players.
